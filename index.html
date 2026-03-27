@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Forecasting Report - Light Theme</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; color: #0f172a; font-family: 'Inter', system-ui, sans-serif; }
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
+        .table-header { background: #f1f5f9; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; font-weight: 700; }
+        .risk-red { color: #b91c1c; font-weight: 700; background: #fee2e2; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; }
+        .risk-amber { color: #b45309; font-weight: 700; background: #fef3c7; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; }
+        .risk-green { color: #15803d; font-weight: 700; background: #dcfce7; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; }
+        .chart-container { height: 400px; width: 100%; }
+        h1, h2, h3 { font-family: 'Inter', sans-serif; tracking-tight; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 pb-6 gap-4">
+            <div>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">FX FORECASTING <span class="text-blue-600">SYSTEM</span></h1>
+                <p class="text-slate-500 font-medium mt-1">Quant Strategy & Multi-Region Analysis</p>
+            </div>
+            <div class="text-left md:text-right text-sm text-slate-400 font-mono bg-slate-100 p-3 rounded border border-slate-200">
+                BUILD: v1.0<br>
+                OWNER: VTG 
+            </div>
+        </header>
+
+        <!-- Executive Summary Section -->
+        <section class="card overflow-hidden">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-xl font-bold flex items-center gap-3 text-slate-800">
+                    <div class="w-2 h-6 bg-blue-600 rounded"></div>
+                    Executive Summary
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="py-2 px-6">Market</th>
+                            <th class="py-2 px-6">Country</th>
+                            <th class="py-2 px-6">Current Spot</th>
+                            <th class="py-2 px-6">1M Forecast</th>
+                            <th class="py-2 px-6">3M Forecast</th>
+                            <th class="py-2 px-6">6M Forecast</th>
+                            <th class="py-2 px-6">Risk Level</th>
+                            <th class="py-2 px-6">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-body" class="divide-y divide-slate-100">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Comparison Chart Section -->
+        <section class="card overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center gap-4 bg-slate-50">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-bold text-slate-500 uppercase tracking-wide">So sánh:</span>
+                    <div class="flex bg-slate-100 p-1 rounded-full border border-slate-200">
+                        <button id="btn-vs-current" class="px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all">So với hiện tại</button>
+                        <button id="btn-vs-eoy" class="px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all">So với cuối năm trước</button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-white overflow-hidden">
+                <div id="comparison-chart" style="height: 480px; width: 100%; min-width: 800px;"></div>
+            </div>
+        </section>
+
+        <!-- Executive Briefs Grid -->
+        <section class="card p-6">
+            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Strategic Commentary</h3>
+            <div id="briefs-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- World Market Events -->
+        <section class="card p-6">
+            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">World Market Events</h3>
+            <div id="world-news" class="space-y-4"></div>
+        </section>
+
+        <!-- Dynamic Charts -->
+        <div id="market-charts" class="space-y-8">
+            <!-- Filled by JS -->
+        </div>
+
+        <section class="card overflow-hidden">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-xl font-bold text-slate-800">Model Backtest Scorecard</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="py-2 px-6">Market</th>
+                            <th class="py-2 px-6">Weighted MAE</th>
+                            <th class="py-2 px-6">Random Walk MAE</th>
+                            <th class="py-2 px-6">Improvement (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scorecard-body" class="divide-y divide-slate-100 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Expert Reference -->
+        <section class="card overflow-hidden">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-xl font-bold text-slate-800">Expert Reference</h2>
+            </div>
+            <div id="expert-container" class="p-6 space-y-8 divide-y divide-slate-100">
+                <!-- Filled by JS -->
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm py-12">
+            &copy; 2026 VTG FX Intelligence Unit. All data from internal quantitative models.
+        
+        <div id="debug-panel" class="fixed bottom-4 right-4 z-[9999] bg-black/80 text-white p-4 rounded-lg text-[10px] font-mono hidden max-w-xs">
+            <h5 class="font-bold border-b border-white/20 mb-2 pb-1">System Debug Logs</h5>
+            <div id="debug-logs" class="space-y-1"></div>
+            <button onclick="document.getElementById('debug-panel').style.display='none'" class="mt-2 text-blue-400">Close</button>
+        </div>
+    </div>
+
+        </footer>
+    </div>
+
+    
+    
+    <script>
+        const SPREADSHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsu760_gHWmPKQawCwwSezlYZINerz79dTm16J1WsVJV5EIgSoU-v0oFiYEKJ5UslKPuqs2VLMGvrN/pub?gid=";
+        const SPREADSHEET_SUFFIX = "&single=true&output=csv";
+        
+        const GIDS = {
+            break_events: "1050980502",
+            scorecard: "1558970140",
+            risk_analysis: "957025243",
+            expert_reference: "1107641351",
+            world_update: "1185093715",
+            data_quality: "1475296298",
+            exec_summary: "996121047",
+            forecasts: "735040267"
+        };
+        
+        const MKT_MAP = {
+            "VND": "Vietnam",   "BIF": "Burundi",   "HTG": "Haiti", 
+            "MMK": "Myanmar",   "LAK": "Laos",      "TZS": "Tanzania", 
+            "KHR": "Cambodia",  "MZN": "Mozambique","PEN": "Peru",
+            "MWK": "Malawi",    "RWF": "Rwanda",    "VUV": "Vanuatu"
+        };
+
+        const COUNTRY_TO_MKT = Object.fromEntries(Object.entries(MKT_MAP).map(([k, v]) => [v, k]));
+
+        let rawData = {
+            world_update: [], exec_summary: [], scorecard: [],
+            data_quality: [], break_events: [], expert_reference: [],
+            risk_analysis: [], charts: {}
+        };
+
+        
+        function parseCSV(text) {
+            const rows = [];
+            let currentField = '';
+            let inQuotes = false;
+            let currentRow = [];
+            const CR = String.fromCharCode(13);
+            const LF = String.fromCharCode(10);
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+                
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') {
+                        currentField += '"';
+                        i++;
+                    } else if (char === '"') {
+                        inQuotes = false;
+                    } else {
+                        currentField += char;
+                    }
+                } else {
+                    if (char === '"') {
+                        inQuotes = true;
+                    } else if (char === ',') {
+                        currentRow.push(currentField);
+                        currentField = '';
+                    } else if (char === CR || char === LF) {
+                        if (currentField || currentRow.length > 0) {
+                            currentRow.push(currentField);
+                            rows.push(currentRow);
+                            currentRow = [];
+                            currentField = '';
+                        }
+                    } else {
+                        currentField += char;
+                    }
+                }
+            }
+            if (currentField || currentRow.length > 0) {
+                currentRow.push(currentField);
+                rows.push(currentRow);
+            }
+            
+            if (rows.length < 1) return [];
+            const header = (rows[0] || []).map(h => h.trim().toLowerCase());
+            return rows.slice(1).map(row => {
+                const obj = {};
+                header.forEach((h, idx) => {
+                    let val = row[idx];
+                    if (val === undefined) val = "";
+                    const trimmedVal = val.trim();
+                    const cleanVal = trimmedVal.replace(/,/g, '');
+                    if (cleanVal !== "" && !isNaN(cleanVal)) {
+                        obj[h] = parseFloat(cleanVal);
+                    } else {
+                        obj[h] = trimmedVal;
+                    }
+                });
+                return obj;
+            });
+        }
+function logDebug(msg, color='white') {
+            const container = document.getElementById('debug-logs');
+            const panel = document.getElementById('debug-panel');
+            if (panel) panel.style.display = 'block';
+            console.log(msg);
+            if (container) {
+                const div = document.createElement('div');
+                div.style.color = color;
+                div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                container.appendChild(div);
+            }
+        }
+
+        async function fetchAllData() {
+            logDebug("Starting data fetch...");
+            try {
+                const fetchPromises = Object.entries(GIDS).map(async ([key, gid]) => {
+                    const url = `${SPREADSHEET_BASE_URL}${gid}${SPREADSHEET_SUFFIX}`;
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const text = await response.text();
+                        const data = parseCSV(text);
+                        logDebug(`Loaded ${key}: ${data.length} rows`, '#4ade80');
+                        return { key, data };
+                    } catch (e) {
+                        logDebug(`Error ${key}: ${e.message}`, '#f87171');
+                        return { key, data: [] };
+                    }
+                });
+
+                const results = await Promise.all(fetchPromises);
+                
+                rawData = {
+                    world_update: [], exec_summary: [], scorecard: [],
+                    data_quality: [], break_events: [], expert_reference: [],
+                    risk_analysis: [], charts: {}
+                };
+
+                results.forEach(r => {
+                    if (r.key === 'forecasts' || r.key === 'Forecasts') {
+                        r.data.forEach(row => {
+                            const mkt = row.market || row.Market || '';
+                            if (mkt) {
+                                if (row.data_type) {
+                                    const dt = String(row.data_type).toLowerCase();
+                                    if (dt === 'actual') row.data_type = 'Actual';
+                                    else if (dt === 'forecast') row.data_type = 'Forecast';
+                                }
+                                if (!rawData.charts[mkt]) rawData.charts[mkt] = [];
+                                rawData.charts[mkt].push(row);
+                            }
+                        });
+                    } else {
+                        rawData[r.key] = r.data;
+                    }
+                });
+
+                initDashboard();
+            } catch (err) {
+                logDebug(`CRITICAL ERROR: ${err.message}`, '#ef4444');
+                console.error(err);
+            }
+        }
+
+        function fmt2(val) {
+            if (val === null || val === undefined || val === '') return '-';
+            const n = parseFloat(val);
+            if (isNaN(n)) return val;
+            return n.toFixed(2);
+        }
+        
+        function initDashboard() {
+            const summaryBody = document.getElementById('summary-body');
+            const briefsContainer = document.getElementById('briefs-container');
+            if (!summaryBody || !briefsContainer) return;
+            
+            summaryBody.innerHTML = '';
+            briefsContainer.innerHTML = '';
+
+            const items = rawData.exec_summary || [];
+            if (items.length === 0) logDebug("No data in Executive Summary!", "#facc15");
+
+            items.forEach(row => {
+                const mkt = row.market || row.Market || '-';
+                const countryName = MKT_MAP[mkt] || row.country || row.Country || '-';
+                let currentSpot = "-";
+                let currentDate = "-";
+                const chartData = rawData.charts[mkt];
+                if (chartData && chartData.length > 0) {
+                    const actuals = chartData.filter(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
+                    if (actuals.length > 0) {
+                        const last = actuals[actuals.length - 1];
+                        const val = last.spot_base;
+                        if (val !== null && val !== undefined) {
+                            currentSpot = parseFloat(val).toFixed(2);
+                        }
+                        currentDate = last.date || last.Date || "-";
+                    }
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
+                const trafficLight = (row.trafficlight || row.TrafficLight || "N/A");
+                
+                tr.innerHTML = `
+                    <td class="py-3 px-6 font-bold text-slate-800">${mkt}</td>
+                    <td class="py-3 px-6 font-semibold text-slate-700">${countryName}</td>
+                    <td class="py-3 px-6 font-semibold text-slate-900">${currentSpot} <span class="text-xs text-slate-400">(${currentDate})</span></td>
+                    <td class="py-3 px-6 font-medium ${(row['1m_forecast_pct'] || row['1M_Forecast_Pct'] || 0) > 0 ? 'text-red-600' : 'text-green-600'}">${fmt2(row['1m_forecast_pct'] || row['1M_Forecast_Pct'])}%</td>
+                    <td class="py-3 px-6 font-medium ${(row['3m_forecast_pct'] || row['3M_Forecast_Pct'] || 0) > 0 ? 'text-red-600' : 'text-green-600'}">${fmt2(row['3m_forecast_pct'] || row['3M_Forecast_Pct'])}%</td>
+                    <td class="py-3 px-6 font-medium ${(row['6m_forecast_pct'] || row['6M_Forecast_Pct'] || 0) > 0 ? 'text-red-600' : 'text-green-600'}">${fmt2(row['6m_forecast_pct'] || row['6M_Forecast_Pct'])}%</td>
+                    <td class="py-3 px-6 font-mono text-slate-500">${fmt2(row.riskscore || row.RiskScore)}</td>
+                    <td class="py-3 px-6"><span class="risk-${trafficLight.toLowerCase()}">${trafficLight}</span></td>
+                `;
+                summaryBody.appendChild(tr);
+
+                const brief = document.createElement('div');
+                brief.className = "p-4 bg-slate-50 rounded-lg border border-slate-200";
+                brief.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-sm text-blue-700 uppercase tracking-wider">${mkt}</span>
+                        <span class="risk-${trafficLight.toLowerCase()} shadow-sm">${trafficLight}</span>
+                    </div>
+                    <div class="text-sm text-slate-600 leading-relaxed whitespace-pre-line">${row['executive brief'] || row['Executive Brief'] || ''}</div>
+                `;
+                briefsContainer.appendChild(brief);
+            });
+
+            // WORLD NEWS
+            const worldNews = document.getElementById('world-news');
+            if (worldNews) {
+                worldNews.innerHTML = '';
+                (rawData.world_update || []).forEach(row => {
+                    const item = document.createElement('div');
+                    item.className = "pl-4 border-l-4 border-slate-300";
+                    item.innerHTML = `
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">${row.theme || row.Theme} • ${row.date || row.Date}</div>
+                        <div class="text-base font-semibold text-slate-800 mb-2 leading-tight">${row.headline || row.Headline}</div>
+                        <div class="text-sm text-blue-800 bg-blue-50 p-3 rounded border border-blue-100 italic">${row.fx_implication || row.FX_Implication}</div>
+                    `;
+                    worldNews.appendChild(item);
+                });
+            }
+
+            // SCORECARD
+            const scorecardBody = document.getElementById('scorecard-body');
+            if (scorecardBody) {
+                scorecardBody.innerHTML = '';
+                (rawData.scorecard || []).forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="py-2 px-6 font-bold text-slate-800">${row.market || row.Market}</td>
+                        <td class="py-2 px-6">${(row.weightedmae || row.WeightedMAE || 0).toFixed(4)}</td>
+                        <td class="py-2 px-6">${(row.rw_mae || row.RW_MAE || 0).toFixed(4)}</td>
+                        <td class="py-2 px-6 font-bold ${(row.improvement_vs_rw_pct || row.Improvement_vs_RW_pct) > 0 ? 'text-green-600' : 'text-slate-500'}">${(row.improvement_vs_rw_pct || row.Improvement_vs_RW_pct || 0).toFixed(2)}%</td>
+                    `;
+                    scorecardBody.appendChild(tr);
+                });
+            }
+
+            // EXPERT REF
+            const expertContainer = document.getElementById('expert-container');
+            if (expertContainer) {
+                expertContainer.innerHTML = '';
+                (rawData.expert_reference || []).forEach(row => {
+                    const block = document.createElement('div');
+                    block.className = "pt-8 first:pt-0";
+                    block.innerHTML = `
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                            <h4 class="text-lg font-bold text-slate-900 uppercase tracking-tight">${row.market || row.Market || '-'}</h4>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Basis 2024</span>
+                                <span class="text-sm font-semibold text-slate-700">${fmt2(row.basis2024 || row.Basis2024)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Basis 2025</span>
+                                <span class="text-sm font-semibold text-slate-700">${fmt2(row.basis2025 || row.Basis2025)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Range 2024</span>
+                                <span class="text-sm font-semibold text-slate-700">${fmt2(row.range24low || row.Range24Low)} – ${fmt2(row.range24high || row.Range24High)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Range 2025</span>
+                                <span class="text-sm font-semibold text-slate-700">${fmt2(row.range25low || row.Range25Low)} – ${fmt2(row.range25high || row.Range25High)}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            ${(row.specialnotes || row.SpecialNotes) ? `<div><span class="text-xs font-bold text-slate-400 uppercase block mb-1">Ghi chú đặc biệt:</span><p class="text-sm text-slate-500 italic leading-relaxed">${row.specialnotes || row.SpecialNotes}</p></div>` : ''}
+                            ${(row.explanation || row.Explanation) ? `<div><span class="text-xs font-bold text-slate-400 uppercase block mb-1">Giải thích & Nhận định:</span><p class="text-sm text-slate-600 leading-relaxed whitespace-pre-line">${row.explanation || row.Explanation}</p></div>` : ''}
+                        </div>
+                    `;
+                    expertContainer.appendChild(block);
+                });
+            }
+
+            // CHARTS
+            const chartSection = document.getElementById('market-charts');
+            if (chartSection) {
+                chartSection.innerHTML = '';
+                Object.entries(rawData.charts).forEach(([mkt, points]) => {
+                    const container = document.createElement('div');
+                    container.className = "card p-6 pb-2";
+                    const chartId = 'echart-' + mkt.replace(/[^a-zA-Z0-9]/g, '');
+                    container.innerHTML = `
+                        <h3 class="text-2xl font-bold text-slate-800 mb-2">${mkt} Timeline</h3>
+                        <div id="${chartId}" class="chart-container" style="height:400px"></div>
+                    `;
+                    chartSection.appendChild(container);
+                    setTimeout(() => renderEChart(chartId, mkt, points), 0);
+                });
+            }
+
+            initComparisonChart();
+            logDebug("Dashboard update complete.", "#4ade80");
+        }
+
+        let comparisonChart;
+        function initComparisonChart() {
+            const chartDom = document.getElementById('comparison-chart');
+            if (!chartDom) return;
+            if (comparisonChart) { comparisonChart.dispose(); }
+            comparisonChart = echarts.init(chartDom);
+            updateComparisonChart('current');
+            
+            const btnCurrent = document.getElementById('btn-vs-current');
+            const btnEoy = document.getElementById('btn-vs-eoy');
+            if (btnCurrent && btnEoy) {
+                btnCurrent.onclick = () => { updateComparisonStyle(btnCurrent, btnEoy); updateComparisonChart('current'); };
+                btnEoy.onclick = () => { updateComparisonStyle(btnEoy, btnCurrent); updateComparisonChart('eoy'); };
+            }
+            window.addEventListener('resize', () => comparisonChart.resize());
+        }
+
+        function updateComparisonStyle(active, inactive) {
+            active.className = "px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent";
+            inactive.className = "px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent";
+        }
+
+        
+        function updateComparisonChart(mode) {
+            const markets = (rawData.exec_summary || []).map(r => r.market || r.Market);
+            const seriesData = { '1M': [], '3M': [], '6M': [], '12M': [] };
+            
+            markets.forEach(mkt => {
+                const points = rawData.charts[mkt] || [];
+                const actuals = points.filter(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
+                const forecasts = points.filter(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'));
+                
+                const currentSpot = actuals.length > 0 ? actuals[actuals.length - 1].spot_base : 1;
+                let base = currentSpot;
+
+                if (mode === 'eoy') {
+                    // Find the most recent December point from historical data
+                    const decPoints = actuals.filter(p => {
+                        const d = String(p.date || p.Date || "");
+                        return d.includes("-12-");
+                    });
+                    if (decPoints.length > 0) {
+                        base = decPoints[decPoints.length - 1].spot_base;
+                    }
+                }
+
+                const getPct = (idx) => {
+                    if (forecasts.length > idx && base > 0) {
+                        return ((forecasts[idx].spot_base / base - 1) * 100).toFixed(2);
+                    }
+                    return 0;
+                };
+
+                seriesData['1M'].push(getPct(0));
+                seriesData['3M'].push(getPct(2));
+                seriesData['6M'].push(getPct(5));
+                seriesData['12M'].push(getPct(11));
+            });
+
+            const labelConfig = { show: true, position: 'top', formatter: '{c}%', fontSize: 9 };
+
+            const option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
+                    let res = `<div style="font-weight:bold;margin-bottom:4px;">${params[0].name} (vs ${mode === 'eoy' ? 'Year-End' : 'Current'})</div>`;
+                    params.forEach(p => {
+                        res += `<div style="display:flex;justify-content:space-between;gap:20px;">
+                            <span>${p.seriesName}:</span>
+                            <span style="font-weight:bold;color:${p.color}">${p.value}%</span>
+                        </div>`;
+                    });
+                    return res;
+                }},
+                legend: { data: ['1M', '3M', '6M', '12M'], bottom: 0 },
+                xAxis: { type: 'category', data: markets },
+                yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
+                series: [
+                    { name: '1M', type: 'bar', data: seriesData['1M'], itemStyle: {color:'#3b82f6'}, label: labelConfig },
+                    { name: '3M', type: 'bar', data: seriesData['3M'], itemStyle: {color:'#0ea5e9'}, label: labelConfig },
+                    { name: '6M', type: 'bar', data: seriesData['6M'], itemStyle: {color:'#2dd4bf'}, label: labelConfig },
+                    { name: '12M', type: 'bar', data: seriesData['12M'], itemStyle: {color:'#10b981'}, label: labelConfig }
+                ]
+            };
+            comparisonChart.setOption(option, true);
+        }
+function renderEChart(elementId, mktName, points) {
+            const chartDom = document.getElementById(elementId);
+            if (!chartDom) return;
+            const myChart = echarts.init(chartDom);
+            
+            const dates = points.map(p => p.date || p.Date);
+            const spotBase = points.map(p => (p.spot_base !== undefined && p.spot_base !== null) ? Number(p.spot_base) : null);
+            const isActual = points.map(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
+            const isForecast = points.map(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'));
+
+            const actualValues = spotBase.filter((v, i) => isActual[i] && v !== null && !isNaN(v));
+            const returns = [];
+            for (let i = 1; i < actualValues.length; i++) {
+                if (actualValues[i-1] > 0) {
+                    returns.push(actualValues[i] / actualValues[i-1] - 1);
+                }
+            }
+
+            const meanReturn = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
+            const variance = returns.reduce((acc, rv) => acc + Math.pow(rv - meanReturn, 2), 0) / (returns.length || 1);
+            const stddev = Math.sqrt(variance) || 0.001;
+            const z = 1.28155; // normal 10th/90th quantile
+
+            const round2 = (x) => (x === null || x === undefined || isNaN(x) ? null : Number(x.toFixed(2)));
+
+            const p10s = spotBase.map((v, i) => {
+                if (v === null || isNaN(v)) return null;
+                if (isForecast[i]) {
+                    return round2(Math.max(0, v * (1 - z * stddev)));
+                }
+                return null;
+            });
+            const p90s = spotBase.map((v, i) => {
+                if (v === null || isNaN(v)) return null;
+                if (isForecast[i]) {
+                    return round2(v * (1 + z * stddev));
+                }
+                return null;
+            });
+
+            const countryName = MKT_MAP[mktName] || mktName;
+            const breakEvents = (rawData.break_events || []).filter(e => {
+                const breakMarket = String(e.market || e.Market || '').trim();
+                const normalizedBreakMarket = breakMarket && COUNTRY_TO_MKT[breakMarket] ? COUNTRY_TO_MKT[breakMarket] : breakMarket;
+                return breakMarket === mktName || breakMarket === countryName || normalizedBreakMarket === mktName;
+            });
+            
+            const markPoints = [];
+            const eventMap = {};
+
+            if (mktName === 'BIF') {
+                console.log('BIF break events:', breakEvents);
+            }
+
+            breakEvents.forEach(evt => {
+                const rawDate = String(evt.Date || evt.date || '').trim();
+                if (!rawDate) return;
+
+                // Parse and convert to month-end string
+                let eventDate = new Date(rawDate);
+                if (isNaN(eventDate)) {
+                    const alt = rawDate.replace(/\s+/g, ' ');
+                    eventDate = new Date(alt);
+                }
+                if (isNaN(eventDate)) return;
+
+                const year = eventDate.getFullYear();
+                const month = eventDate.getMonth() + 1;
+                const eventYM = `${year}-${String(month).padStart(2, '0')}`;
+
+                const idx = points.findIndex(p => {
+                    const pDateRaw = String(p.Date || p.date || '').trim();
+                    if (!pDateRaw) return false;
+                    const pDate = new Date(pDateRaw);
+                    if (isNaN(pDate)) return false;
+                    const pYM = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}`;
+                    return pYM === eventYM;
+                });
+
+                if (idx !== -1) {
+                    const pointDate = points[idx].date || points[idx].Date;
+                    const eventParts = Object.entries(evt).filter(([k, v]) => {
+                        const lower = k.toLowerCase();
+                        return v != null && String(v).trim() !== '' && lower !== 'market' && lower !== 'date';
+                    }).map(([k, v]) => `${k}: ${v}`);
+                    const label = eventParts.join(' | ') || 'Break';
+
+                    if (!eventMap[pointDate]) eventMap[pointDate] = [];
+                    eventMap[pointDate].push(label);
+
+                    markPoints.push({
+                        xAxis: pointDate,
+                        yAxis: spotBase[idx],
+                        value: spotBase[idx],
+                        symbol: 'triangle',
+                        symbolSize: 10,
+                        itemStyle: {color:'#f59e0b', opacity:0.8},
+                        label: { show: false }
+                    });
+                }
+            });
+
+
+            const actuals = spotBase.map((v, i) => isActual[i] ? v : null);
+            const forecasts = spotBase.map((v, i) => isForecast[i] ? v : null);
+
+            // Fill forecast with a fake start point from the last actual to avoid visual gap
+            const lastActualIndex = actuals.map((v, i) => ({v, i})).filter(x => x.v != null).map(x => x.i).pop();
+            if (lastActualIndex !== undefined && lastActualIndex !== null) {
+                const baseValue = actuals[lastActualIndex];
+                if (baseValue != null && forecasts[lastActualIndex] == null) {
+                    forecasts[lastActualIndex] = baseValue;
+                }
+            }
+
+            const option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: (params) => {
+                    // Primary axis tooltip
+                    let res = `<div><strong>${params[0].axisValue}</strong></div>`;
+                    params.forEach(p => {
+                        res += `<div style="display:flex;justify-content:space-between;gap:20px;">` +
+                            `<span>${p.seriesName}:</span>` +
+                            `<span style="font-weight:bold;color:${p.color}">${p.seriesName==='Actual' || p.seriesName==='Forecast' ? (p.value!=null ? p.value.toFixed(3) : '-') : (p.value!=null ? p.value.toFixed(2) : '-')}</span>` +
+                            `</div>`;
+                    });
+
+                    const events = eventMap[params[0].axisValue] || [];
+                    if (events.length) {
+                        res += '<div style="margin-top:8px;font-weight:bold;color:#d97706">Break Events:</div>';
+                        events.forEach(ev => {
+                            res += `<div style="font-size:11px;color:#374151">• ${ev}</div>`;
+                        });
+                    }
+                    return res;
+                } },
+                legend: { data: ['Actual', 'Forecast', 'P90', 'P10'], top: 10 },
+                grid: { top: 60, left: 50, right: 30, bottom: 50 },
+                xAxis: { type: 'category', data: dates, boundaryGap: false },
+                yAxis: { type: 'value', scale: true, min: 'dataMin', max: 'dataMax' },
+                series: [
+                    { name: 'Actual', type: 'line', data: actuals, itemStyle: {color:'#111827'}, connectNulls: true, markPoint: { data: markPoints }, showSymbol: false, lineStyle:{width:2}, areaStyle: {opacity:0.08, color:'#111827'} },
+                    { name: 'Forecast', type: 'line', data: forecasts, lineStyle: {type:'dashed', color:'#0ea5e9', width:2}, connectNulls: true, showSymbol: false, areaStyle: {opacity:0.12, color:'#0ea5e94d'} },
+                    { name: 'P90', type: 'line', data: p90s, itemStyle: {color:'#38bdf8'}, lineStyle: { width: 1.5, type: 'dotted' }, symbol: 'none', showSymbol: false, connectNulls: true },
+                    { name: 'P10', type: 'line', data: p10s, itemStyle: {color:'#38bdf8'}, lineStyle: { width: 1.5, type: 'dotted' }, symbol: 'none', showSymbol: false, connectNulls: true }
+                ]
+            };
+            myChart.setOption(option);
+            window.addEventListener('resize', () => myChart.resize());
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchAllData);
+    </script>
+
+
+</body>
+</html>
