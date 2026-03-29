@@ -142,9 +142,9 @@
         <header
             class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 pb-6 gap-4">
             <div>
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">FX FORECASTING <span
-                        class="text-blue-600">SYSTEM</span></h1>
-                <p class="text-slate-500 font-medium mt-1">Quant Strategy & Multi-Region Analysis</p>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">HỆ THỐNG DỰ BÁO <span
+                        class="text-blue-600">TỶ GIÁ</span></h1>
+                <p class="text-slate-500 font-medium mt-1">Chiến lược định lượng &amp; Phân tích đa khu vực</p>
             </div>
             <div
                 class="text-left md:text-right text-sm text-slate-400 font-mono bg-slate-100 p-3 rounded border border-slate-200">
@@ -153,27 +153,36 @@
             </div>
         </header>
 
+        <!-- Global Comparison Filter -->
+        <div class="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <span class="text-sm font-bold text-slate-500 uppercase tracking-wide">So sánh dự báo:</span>
+            <div class="flex bg-slate-100 p-1 rounded-full border border-slate-200">
+                <button id="btn-vs-current"
+                    class="px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all">So với hiện tại</button>
+                <button id="btn-vs-eoy"
+                    class="px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all">So với cuối năm trước</button>
+            </div>
+        </div>
+
         <!-- Executive Summary Section -->
         <section class="card overflow-hidden">
             <div class="p-6 border-b border-slate-100">
                 <h2 class="text-xl font-bold flex items-center gap-3 text-slate-800">
                     <div class="w-2 h-6 bg-blue-600 rounded"></div>
-                    Executive Summary (Dự báo so với hiện tại)
+                    Executive Summary (<span id="summary-mode-label">So với hiện tại</span>)
                 </h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead class="table-header">
                         <tr>
-                            <th class="py-2 px-6">Market</th>
-                            <th class="py-2 px-6">Country</th>
-                            <th class="py-2 px-6">Current Spot</th>
-                            <th class="py-2 px-6">1M Forecast</th>
-                            <th class="py-2 px-6">3M Forecast</th>
-                            <th class="py-2 px-6">6M Forecast</th>
-                            <th class="py-2 px-6">12M Forecast</th>
-                            <th class="py-2 px-6">RiskScore</th>
-                            <th class="py-2 px-6">Status</th>
+                            <th class="py-2 px-6">Thị trường</th>
+                            <th class="py-2 px-6">Quốc gia</th>
+                            <th class="py-2 px-6">Tỷ giá hiện tại</th>
+                            <th class="py-2 px-6">Dự báo 1T</th>
+                            <th class="py-2 px-6">Dự báo 3T</th>
+                            <th class="py-2 px-6">Dự báo 6T</th>
+                            <th class="py-2 px-6">Dự báo 12T</th>
                         </tr>
                     </thead>
                     <tbody id="summary-body" class="divide-y divide-slate-100">
@@ -184,18 +193,8 @@
 
         <!-- Comparison Chart Section -->
         <section class="card overflow-hidden">
-            <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center gap-4 bg-slate-50">
-                <div class="flex items-center gap-4">
-                    <span class="text-sm font-bold text-slate-500 uppercase tracking-wide">So sánh dự báo:</span>
-                    <div class="flex bg-slate-100 p-1 rounded-full border border-slate-200">
-                        <button id="btn-vs-current"
-                            class="px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all">So
-                            với hiện tại</button>
-                        <button id="btn-vs-eoy"
-                            class="px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all">So
-                            với cuối năm trước</button>
-                    </div>
-                </div>
+            <div class="p-6 border-b border-slate-100 bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800">Biểu đồ so sánh biến động (%)</h3>
             </div>
             <div class="p-6 bg-white overflow-hidden">
                 <div id="comparison-chart" style="height: 480px; width: 100%; min-width: 800px;"></div>
@@ -204,13 +203,13 @@
 
         <!-- Executive Briefs Grid -->
         <section class="card p-6">
-            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Strategic Commentary</h3>
+            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Nhận định chiến lược</h3>
             <div id="briefs-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </section>
 
         <!-- World Market Events -->
         <section class="card p-6">
-            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">World Market Events</h3>
+            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Sự kiện thị trường thế giới</h3>
             <div id="world-news" class="space-y-4 pr-2 overflow-y-auto max-h-[600px]"></div>
         </section>
 
@@ -221,16 +220,16 @@
 
         <section class="card overflow-hidden">
             <div class="p-6 border-b border-slate-100">
-                <h2 class="text-xl font-bold text-slate-800">Model Backtest Scorecard</h2>
+                <h2 class="text-xl font-bold text-slate-800">Kiểm định mô hình dự báo</h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead class="table-header">
                         <tr>
-                            <th class="py-2 px-6">Market</th>
-                            <th class="py-2 px-6">Weighted MAE</th>
-                            <th class="py-2 px-6">Random Walk MAE</th>
-                            <th class="py-2 px-6">Improvement (%)</th>
+                            <th class="py-2 px-6">Thị trường</th>
+                            <th class="py-2 px-6">MAE có trọng số</th>
+                            <th class="py-2 px-6">MAE ngẫu nhiên</th>
+                            <th class="py-2 px-6">Cải thiện (%)</th>
                         </tr>
                     </thead>
                     <tbody id="scorecard-body" class="divide-y divide-slate-100 text-slate-700">
@@ -239,10 +238,9 @@
             </div>
         </section>
 
-        <!-- Expert Reference -->
         <section class="card overflow-hidden">
             <div class="p-6 border-b border-slate-100">
-                <h2 class="text-xl font-bold text-slate-800">Expert Reference</h2>
+                <h2 class="text-xl font-bold text-slate-800">Tham chiếu chuyên gia</h2>
             </div>
             <div id="expert-container" class="p-6 space-y-8 divide-y divide-slate-100">
                 <!-- Filled by JS -->
@@ -250,7 +248,7 @@
         </section>
 
         <footer class="text-center text-slate-400 text-sm py-12">
-            &copy; 2026 VTG FX Intelligence Unit. All data from internal quantitative models.
+            &copy; 2026 VTG FX Intelligence Unit. Tất cả dữ liệu từ mô hình định lượng nội bộ.
         </footer>
     </div>
 
@@ -442,7 +440,17 @@
 
 
 
-        function initDashboard() {
+        let currentComparisonMode = 'current';
+
+        function renderSummaryTable(comparisonMode) {
+            const summaryBody = document.getElementById('summary-body');
+            if (!summaryBody) return;
+            // re-use the same data already in rawData
+            initDashboard(comparisonMode);
+        }
+
+        function initDashboard(comparisonMode) {
+            comparisonMode = comparisonMode || currentComparisonMode || 'current';
             const summaryBody = document.getElementById('summary-body');
             const briefsContainer = document.getElementById('briefs-container');
             if (!summaryBody || !briefsContainer) return;
@@ -563,21 +571,24 @@
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
-                const pct1mNum = isNaN(pct1m) ? 0 : parseFloat(pct1m);
-                const pct3mNum = isNaN(pct3m) ? 0 : parseFloat(pct3m);
-                const pct6mNum = isNaN(pct6m) ? 0 : parseFloat(pct6m);
-                const pct12mNum = isNaN(pct12m) ? 0 : parseFloat(pct12m);
+                // Use mode-based percentages
+                const usePct1m  = comparisonMode === 'eoy' ? pct1mYoY  : pct1m;
+                const usePct3m  = comparisonMode === 'eoy' ? pct3mYoY  : pct3m;
+                const usePct6m  = comparisonMode === 'eoy' ? pct6mYoY  : pct6m;
+                const usePct12m = comparisonMode === 'eoy' ? pct12mYoY : pct12m;
+                const pct1mNum  = isNaN(usePct1m)  ? 0 : parseFloat(usePct1m);
+                const pct3mNum  = isNaN(usePct3m)  ? 0 : parseFloat(usePct3m);
+                const pct6mNum  = isNaN(usePct6m)  ? 0 : parseFloat(usePct6m);
+                const pct12mNum = isNaN(usePct12m) ? 0 : parseFloat(usePct12m);
 
                 tr.innerHTML = `
                     <td class="py-3 px-6 font-bold text-slate-800">${mkt}</td>
                     <td class="py-3 px-6 font-semibold text-slate-700">${countryName}</td>
                     <td class="py-3 px-6 font-semibold text-slate-900">${currentSpot} <span class="text-xs text-slate-400">(${currentDate})</span></td>
-                    <td class="py-3 px-6 font-medium ${pct1mNum > 0 ? 'text-red-600' : 'text-green-600'}">${pct1m !== "-" ? pct1m + "%" : "-"}</td>
-                    <td class="py-3 px-6 font-medium ${pct3mNum > 0 ? 'text-red-600' : 'text-green-600'}">${pct3m !== "-" ? pct3m + "%" : "-"}</td>
-                    <td class="py-3 px-6 font-medium ${pct6mNum > 0 ? 'text-red-600' : 'text-green-600'}">${pct6m !== "-" ? pct6m + "%" : "-"}</td>
-                    <td class="py-3 px-6 font-medium ${pct12mNum > 0 ? 'text-red-600' : 'text-green-600'}">${pct12m !== "-" ? pct12m + "%" : "-"}</td>
-                    <td class="py-3 px-6 font-mono text-slate-500">${riskScore}</td>
-                    <td class="py-3 px-6"><span class="risk-${trafficLight.toLowerCase()}">${trafficLight}</span></td>
+                    <td class="py-3 px-6 font-medium ${pct1mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct1m !== "-" ? usePct1m + "%" : "-"}</td>
+                    <td class="py-3 px-6 font-medium ${pct3mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct3m !== "-" ? usePct3m + "%" : "-"}</td>
+                    <td class="py-3 px-6 font-medium ${pct6mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct6m !== "-" ? usePct6m + "%" : "-"}</td>
+                    <td class="py-3 px-6 font-medium ${pct12mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct12m !== "-" ? usePct12m + "%" : "-"}</td>
                 `;
                 summaryBody.appendChild(tr);
 
@@ -903,26 +914,41 @@
             if (!chartDom) return;
             if (comparisonChart) { comparisonChart.dispose(); }
             comparisonChart = echarts.init(chartDom);
-            updateComparisonChart('current');
+            updateComparisonChart(currentComparisonMode);
 
             const btnCurrent = document.getElementById('btn-vs-current');
             const btnEoy = document.getElementById('btn-vs-eoy');
             if (btnCurrent && btnEoy) {
-                btnCurrent.onclick = () => { updateComparisonStyle(btnCurrent, btnEoy); updateComparisonChart('current'); };
-                btnEoy.onclick = () => { updateComparisonStyle(btnEoy, btnCurrent); updateComparisonChart('eoy'); };
+                btnCurrent.onclick = () => {
+                    currentComparisonMode = 'current';
+                    updateComparisonStyle(btnCurrent, btnEoy);
+                    updateComparisonChart('current');
+                    const lbl = document.getElementById('summary-mode-label');
+                    if (lbl) lbl.textContent = 'So v\u1edbi hi\u1ec7n t\u1ea1i';
+                    initDashboard('current');
+                };
+                btnEoy.onclick = () => {
+                    currentComparisonMode = 'eoy';
+                    updateComparisonStyle(btnEoy, btnCurrent);
+                    updateComparisonChart('eoy');
+                    const lbl = document.getElementById('summary-mode-label');
+                    if (lbl) lbl.textContent = 'So v\u1edbi cu\u1ed1i n\u0103m tr\u01b0\u1edbc';
+                    initDashboard('eoy');
+                };
             }
             window.addEventListener('resize', () => comparisonChart.resize());
         }
 
         function updateComparisonStyle(active, inactive) {
-            active.className = "px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent";
-            inactive.className = "px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent";
+            active.className = "px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all";
+            inactive.className = "px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all";
         }
 
 
         function updateComparisonChart(mode) {
-            const markets = (rawData.exec_summary || []).map(r => r.market || r.Market);
-            const seriesData = { '1M': [], '3M': [], '6M': [], '12M': [] };
+            // Use same sorted order as the summary table
+            const markets = Object.keys(rawData.charts || {}).sort();
+            const seriesData = { '1T': [], '3T': [], '6T': [], '12T': [] };
 
             markets.forEach(mkt => {
                 const points = rawData.charts[mkt] || [];
@@ -933,7 +959,6 @@
                 let base = currentSpot;
 
                 if (mode === 'eoy') {
-                    // Find the most recent December point from historical data
                     const decPoints = actuals.filter(p => {
                         const d = String(p.date || p.Date || "");
                         return d.includes("-12-");
@@ -950,10 +975,10 @@
                     return 0;
                 };
 
-                seriesData['1M'].push(getPct(0));
-                seriesData['3M'].push(getPct(2));
-                seriesData['6M'].push(getPct(5));
-                seriesData['12M'].push(getPct(11));
+                seriesData['1T'].push(getPct(0));
+                seriesData['3T'].push(getPct(2));
+                seriesData['6T'].push(getPct(5));
+                seriesData['12T'].push(getPct(11));
             });
 
             const labelConfig = { show: true, position: 'top', formatter: '{c}%', fontSize: 9 };
@@ -961,7 +986,7 @@
             const option = {
                 tooltip: {
                     trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
-                        let res = `<div style="font-weight:bold;margin-bottom:4px;">${params[0].name} (vs ${mode === 'eoy' ? 'Year-End' : 'Current'})</div>`;
+                        let res = `<div style="font-weight:bold;margin-bottom:4px;">${params[0].name} (so với ${mode === 'eoy' ? 'cuối năm trước' : 'hiện tại'})</div>`;
                         params.forEach(p => {
                             res += `<div style="display:flex;justify-content:space-between;gap:20px;">
                             <span>${p.seriesName}:</span>
@@ -971,14 +996,14 @@
                         return res;
                     }
                 },
-                legend: { data: ['1M', '3M', '6M', '12M'], bottom: 0 },
+                legend: { data: ['1T', '3T', '6T', '12T'], bottom: 0 },
                 xAxis: { type: 'category', data: markets },
                 yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
                 series: [
-                    { name: '1M', type: 'bar', data: seriesData['1M'], itemStyle: { color: '#3b82f6' }, label: labelConfig },
-                    { name: '3M', type: 'bar', data: seriesData['3M'], itemStyle: { color: '#0ea5e9' }, label: labelConfig },
-                    { name: '6M', type: 'bar', data: seriesData['6M'], itemStyle: { color: '#2dd4bf' }, label: labelConfig },
-                    { name: '12M', type: 'bar', data: seriesData['12M'], itemStyle: { color: '#10b981' }, label: labelConfig }
+                    { name: '1T', type: 'bar', data: seriesData['1T'], itemStyle: { color: '#3b82f6' }, label: labelConfig },
+                    { name: '3T', type: 'bar', data: seriesData['3T'], itemStyle: { color: '#0ea5e9' }, label: labelConfig },
+                    { name: '6T', type: 'bar', data: seriesData['6T'], itemStyle: { color: '#2dd4bf' }, label: labelConfig },
+                    { name: '12T', type: 'bar', data: seriesData['12T'], itemStyle: { color: '#10b981' }, label: labelConfig }
                 ]
             };
             comparisonChart.setOption(option, true);
@@ -1089,7 +1114,7 @@
                         const date = params[0].axisValue;
                         let html = `<div style="font-weight:700;margin-bottom:8px;border-bottom:1px solid #f1f5f9;padding-bottom:5px;color:#0f172a">${date}</div>`;
                         params.forEach(p => {
-                            if (['P10', 'P90', 'Range Area'].includes(p.seriesName)) return;
+                            if (['P10', 'P90', 'Khoảng dự báo'].includes(p.seriesName)) return;
                             const val = p.value != null ? p.value.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-';
                             html += `<div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:3px">
                                 <span style="display:flex;align-items:center;gap:6px">
@@ -1102,14 +1127,14 @@
                         const idx = params[0].dataIndex;
                         if (p10s[idx] != null && p90s[idx] != null) {
                             html += `<div style="margin-top:8px;padding:6px;background:#f8fafc;border-radius:4px;border:1px solid #f1f5f9">
-                                <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:2px">Confidence High/Low (80%)</div>
+                                <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:2px">Khoảng tin cậy cao/thấp (80%)</div>
                                 <div style="font-weight:700;color:#475569">${p10s[idx].toLocaleString()} — ${p90s[idx].toLocaleString()}</div>
                             </div>`;
                         }
                         const events = eventMap[date] || [];
                         if (events.length) {
                             html += `<div style="margin-top:8px;border-top:1px solid #fee2e2;padding-top:8px">
-                                <div style="color:#b91c1c;font-weight:700;font-size:10px;text-transform:uppercase">Market Events</div>`;
+                                <div style="color:#b91c1c;font-weight:700;font-size:10px;text-transform:uppercase">Sự kiện thị trường</div>`;
                             events.forEach(ev => html += `<div style="color:#7f1d1d;font-size:11px;margin-top:2px">• ${ev}</div>`);
                             html += `</div>`;
                         }
@@ -1117,7 +1142,7 @@
                     }
                 },
                 legend: {
-                    data: ['Actual', 'Forecast', 'Range Area'],
+                    data: ['Thực tế', 'Dự báo', 'Khoảng dự báo'],
                     icon: 'roundRect',
                     itemWidth: 25,
                     itemHeight: 8,
@@ -1142,19 +1167,19 @@
                 },
                 series: [
                     {
-                        name: 'Actual', type: 'line', data: actuals, smooth: 0.4,
-                        itemStyle: { color: '#1e3a8a' }, lineStyle: { width: 3.5 },
+                        name: 'Thực tế', type: 'line', data: actuals, smooth: 0.4,
+                        itemStyle: { color: '#94a3b8' }, lineStyle: { width: 2.5, color: '#94a3b8' },
                         connectNulls: true, showSymbol: false,
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(30, 58, 138, 0.1)' },
-                                { offset: 1, color: 'rgba(30, 58, 138, 0)' }
+                                { offset: 0, color: 'rgba(148, 163, 184, 0.12)' },
+                                { offset: 1, color: 'rgba(148, 163, 184, 0)' }
                             ])
                         },
                         markPoint: { data: markPoints }
                     },
                     {
-                        name: 'Forecast', type: 'line', data: forecasts, smooth: 0.4,
+                        name: 'Dự báo', type: 'line', data: forecasts, smooth: 0.4,
                         lineStyle: { width: 3, type: [6, 4], color: '#3b82f6' },
                         itemStyle: { color: '#3b82f6' }, showSymbol: false
                     },
@@ -1163,11 +1188,11 @@
                         lineStyle: { opacity: 0 }, symbol: 'none'
                     },
                     {
-                        name: 'Range Area', type: 'line',
+                        name: 'Khoảng dự báo', type: 'line',
                         data: p90s.map((v, i) => (v != null && p10s[i] != null) ? round2(v - p10s[i]) : null),
                         stack: 'ci',
                         areaStyle: { color: '#3b82f6', opacity: 0.12 },
-                        itemStyle: { color: '#3b82f6' }, // Legend matches area color
+                        itemStyle: { color: '#3b82f6' },
                         lineStyle: { opacity: 0 }, symbol: 'none'
                     }
                 ]
