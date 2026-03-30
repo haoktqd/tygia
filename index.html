@@ -158,9 +158,11 @@
             <span class="text-sm font-bold text-slate-500 uppercase tracking-wide">So sánh dự báo:</span>
             <div class="flex bg-slate-100 p-1 rounded-full border border-slate-200">
                 <button id="btn-vs-current"
-                    class="px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all">So với hiện tại</button>
+                    class="px-5 py-1.5 text-sm font-semibold rounded-full bg-[#0ea5e9] text-white shadow-sm border border-transparent transition-all">So
+                    với hiện tại</button>
                 <button id="btn-vs-eoy"
-                    class="px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all">So với cuối năm trước</button>
+                    class="px-5 py-1.5 text-sm font-semibold rounded-full text-slate-500 hover:text-slate-700 bg-transparent transition-all">So
+                    với cuối năm trước</button>
             </div>
         </div>
 
@@ -169,7 +171,7 @@
             <div class="p-6 border-b border-slate-100">
                 <h2 class="text-xl font-bold flex items-center gap-3 text-slate-800">
                     <div class="w-2 h-6 bg-blue-600 rounded"></div>
-                    Executive Summary (<span id="summary-mode-label">So với hiện tại</span>)
+                    Executive Summary -<span id="summary-mode-label">So với hiện tại</span>
                 </h2>
             </div>
             <div class="overflow-x-auto">
@@ -209,7 +211,8 @@
 
         <!-- World Market Events -->
         <section class="card p-6">
-            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Sự kiện thị trường thế giới</h3>
+            <h3 class="text-lg font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Sự kiện thị trường thế giới
+            </h3>
             <div id="world-news" class="space-y-4 pr-2 overflow-y-auto max-h-[600px]"></div>
         </section>
 
@@ -565,13 +568,13 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
                 // Use mode-based percentages
-                const usePct1m  = comparisonMode === 'eoy' ? pct1mYoY  : pct1m;
-                const usePct3m  = comparisonMode === 'eoy' ? pct3mYoY  : pct3m;
-                const usePct6m  = comparisonMode === 'eoy' ? pct6mYoY  : pct6m;
+                const usePct1m = comparisonMode === 'eoy' ? pct1mYoY : pct1m;
+                const usePct3m = comparisonMode === 'eoy' ? pct3mYoY : pct3m;
+                const usePct6m = comparisonMode === 'eoy' ? pct6mYoY : pct6m;
                 const usePct12m = comparisonMode === 'eoy' ? pct12mYoY : pct12m;
-                const pct1mNum  = isNaN(usePct1m)  ? 0 : parseFloat(usePct1m);
-                const pct3mNum  = isNaN(usePct3m)  ? 0 : parseFloat(usePct3m);
-                const pct6mNum  = isNaN(usePct6m)  ? 0 : parseFloat(usePct6m);
+                const pct1mNum = isNaN(usePct1m) ? 0 : parseFloat(usePct1m);
+                const pct3mNum = isNaN(usePct3m) ? 0 : parseFloat(usePct3m);
+                const pct6mNum = isNaN(usePct6m) ? 0 : parseFloat(usePct6m);
                 const pct12mNum = isNaN(usePct12m) ? 0 : parseFloat(usePct12m);
 
                 tr.innerHTML = `
