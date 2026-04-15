@@ -177,14 +177,11 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead class="table-header">
-                        <tr>
+                        <tr id="summary-header-row">
                             <th class="py-2 px-6">Thị trường</th>
                             <th class="py-2 px-6">Quốc gia</th>
-                            <th class="py-2 px-6 text-center">Tỷ giá hiện tại</th>
-                            <th class="py-2 px-6 text-center">Dự báo 1T</th>
-                            <th class="py-2 px-6 text-center">Dự báo 3T</th>
-                            <th class="py-2 px-6 text-center">Dự báo 6T</th>
-                            <th class="py-2 px-6 text-center">Dự báo 12T</th>
+                            <th id="col-current-spot" class="py-2 px-6 text-center">Tỷ giá hiện tại</th>
+                            <!-- Quarter columns filled dynamically by JS -->
                         </tr>
                     </thead>
                     <tbody id="summary-body" class="divide-y divide-slate-100">
@@ -523,9 +520,59 @@
             initDashboard(comparisonMode);
         }
 
+        // Helper: get last-day-of-quarter forecast rows from a list of forecast rows
+        // Returns array: [{label, date, row}] for the next 4 quarter-ends from the last actual date
+        function getQuarterEndForecasts(forecasts, lastActualDate) {
+            if (!lastActualDate || isNaN(lastActualDate)) return [];
+            // Determine next 4 quarter-end dates from lastActualDate
+            const quarters = [];
+            let yr = lastActualDate.getFullYear();
+            let mo = lastActualDate.getMonth(); // 0-based
+            // Quarter end months: Mar(2), Jun(5), Sep(8), Dec(11)
+            const qEndMonths = [2, 5, 8, 11];
+            // Find the next quarter end after lastActualDate
+            let found = 0;
+            let searchYr = yr;
+            let attempts = 0;
+            while (found < 4 && attempts < 20) {
+                for (let qm of qEndMonths) {
+                    const qDate = new Date(searchYr, qm + 1, 0); // last day of month
+                    if (qDate > lastActualDate) {
+                        const q = Math.floor(qm / 3) + 1;
+                        quarters.push({ label: `Q${q}/${searchYr}`, year: searchYr, month: qm, date: qDate });
+                        found++;
+                        if (found >= 4) break;
+                    }
+                }
+                searchYr++;
+                attempts++;
+            }
+
+            // Match each quarter to the nearest forecast row (by YYYY-MM)
+            return quarters.map(q => {
+                const targetYM = `${q.year}-${String(q.month + 1).padStart(2, '0')}`;
+                // Find forecast whose date matches same YYYY-MM
+                let best = null;
+                let bestDiff = Infinity;
+                forecasts.forEach(f => {
+                    const fd = new Date(f.date || f.Date);
+                    if (!isNaN(fd)) {
+                        const fym = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}`;
+                        if (fym === targetYM) { best = f; bestDiff = 0; return; }
+                        // fallback: closest by month distance
+                        const diff = Math.abs((fd.getFullYear() * 12 + fd.getMonth()) - (q.year * 12 + q.month));
+                        if (diff < bestDiff) { bestDiff = diff; best = f; }
+                    }
+                });
+                // Only accept if within 1 month of target
+                return { label: q.label, qDate: q.date, row: bestDiff <= 1 ? best : null };
+            });
+        }
+
         function initDashboard(comparisonMode) {
             comparisonMode = comparisonMode || currentComparisonMode || 'current';
             const summaryBody = document.getElementById('summary-body');
+            const summaryHeaderRow = document.getElementById('summary-header-row');
             const briefsContainer = document.getElementById('briefs-container');
             if (!summaryBody || !briefsContainer) return;
 
@@ -541,6 +588,34 @@
 
             if (mkts.length === 0) logDebug("No data in Forecasts charts!", "#facc15");
 
+            // Determine quarter labels from the first available market
+            let quarterLabels = [];
+            for (const mkt of mkts) {
+                const chartData = chartsData[mkt] || [];
+                const actuals = chartData.filter(p => p.data_type === 'Actual' || p.data_type === 'actual');
+                const forecasts = chartData.filter(p => p.data_type === 'Forecast' || p.data_type === 'forecast')
+                    .sort((a, b) => new Date(a.date || a.Date) - new Date(b.date || b.Date));
+                if (actuals.length > 0 && forecasts.length > 0) {
+                    const lastActualDate = new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date);
+                    const qForecasts = getQuarterEndForecasts(forecasts, lastActualDate);
+                    quarterLabels = qForecasts.map(q => q.label);
+                    break;
+                }
+            }
+
+            // Update header row with quarter labels
+            if (summaryHeaderRow && quarterLabels.length > 0) {
+                // Remove old quarter headers
+                const existingQths = summaryHeaderRow.querySelectorAll('th.q-header');
+                existingQths.forEach(th => th.remove());
+                quarterLabels.forEach(lbl => {
+                    const th = document.createElement('th');
+                    th.className = 'py-2 px-4 text-center q-header';
+                    th.innerHTML = `Dự báo<br><span class="font-black">${lbl}</span>`;
+                    summaryHeaderRow.appendChild(th);
+                });
+            }
+
             mkts.forEach(mkt => {
                 const chartData = chartsData[mkt];
                 if (!chartData || chartData.length === 0) return;
@@ -550,6 +625,7 @@
                 // Find most recent Actual row for current spot and risk info
                 const actuals = chartData.filter(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
                 let currentSpot = "-";
+                let currentSpotNum = null;
                 let currentDate = "-";
                 let riskScore = "-";
                 let trafficLight = "N/A";
@@ -558,111 +634,121 @@
                     const lastActual = actuals[actuals.length - 1];
                     const val = lastActual.spot_base;
                     if (val !== null && val !== undefined) {
+                        currentSpotNum = parseFloat(val);
                         currentSpot = fmtNum(val);
                     }
                     currentDate = lastActual.date || lastActual.Date || "-";
                 }
 
                 // Forecast rows and risk source row
-                const forecasts = chartData.filter(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'));
-                const firstForecast = forecasts
-                    .filter(r => r.date || r.Date)
-                    .sort((a, b) => new Date(a.date || a.Date) - new Date(b.date || b.Date))[0] || null;
+                const forecasts = chartData.filter(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'))
+                    .sort((a, b) => new Date(a.date || a.Date) - new Date(b.date || b.Date));
+                const firstForecast = forecasts[0] || null;
 
                 if (firstForecast) {
-                    const riskValue = firstForecast.riskscore || firstForecast.RiskScore || firstForecast.RiskScore;
-                    const tlValue = (firstForecast.trafficlight || firstForecast.TrafficLight || firstForecast.trafficlight || firstForecast.TrafficLight || '').toString().trim();
+                    const riskValue = firstForecast.riskscore || firstForecast.RiskScore;
+                    const tlValue = (firstForecast.trafficlight || firstForecast.TrafficLight || '').toString().trim();
                     if (riskValue !== undefined && riskValue !== null && String(riskValue).trim() !== '') {
                         const parsed = parseFloat(String(riskValue).replace(',', '.'));
                         if (!isNaN(parsed)) riskScore = parsed.toFixed(2);
                     }
-                    if (tlValue !== '') {
-                        trafficLight = tlValue.toUpperCase();
-                    }
+                    if (tlValue !== '') trafficLight = tlValue.toUpperCase();
                 }
 
-                let pct1m = "-", pct3m = "-", pct6m = "-", pct12m = "-";
-                let pct1mYoY = "-", pct3mYoY = "-", pct6mYoY = "-", pct12mYoY = "-";
+                // Get quarter-end forecasts
+                const lastActualDate = actuals.length > 0 ? new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date) : null;
+                const qForecasts = getQuarterEndForecasts(forecasts, lastActualDate);
 
-                if (actuals.length > 0 && forecasts.length > 0) {
-                    const lastActualSpot = parseFloat(actuals[actuals.length - 1].spot_base);
-                    if (!isNaN(lastActualSpot)) {
-                        if (forecasts.length >= 1) {
-                            const spot1m = parseFloat(forecasts[0].spot_base);
-                            if (!isNaN(spot1m)) pct1m = ((spot1m / lastActualSpot - 1) * 100).toFixed(2);
-                        }
-                        if (forecasts.length >= 3) {
-                            const spot3m = parseFloat(forecasts[2].spot_base);
-                            if (!isNaN(spot3m)) pct3m = ((spot3m / lastActualSpot - 1) * 100).toFixed(2);
-                        }
-                        if (forecasts.length >= 6) {
-                            const spot6m = parseFloat(forecasts[5].spot_base);
-                            if (!isNaN(spot6m)) pct6m = ((spot6m / lastActualSpot - 1) * 100).toFixed(2);
-                        }
-                        if (forecasts.length >= 12) {
-                            const spot12m = parseFloat(forecasts[11].spot_base);
-                            if (!isNaN(spot12m)) pct12m = ((spot12m / lastActualSpot - 1) * 100).toFixed(2);
-                        }
-                    }
+                // Previous year-end spot for YoY comparison
+                const yearNow = lastActualDate ? lastActualDate.getFullYear() : new Date().getFullYear();
+                const lastYear = yearNow - 1;
+                const prevYearActuals = actuals
+                    .map(r => ({ row: r, date: new Date(r.date || r.Date) }))
+                    .filter(item => !isNaN(item.date) && item.date.getFullYear() === lastYear)
+                    .sort((a, b) => b.date - a.date);
+                const prevYearEndSpot = prevYearActuals.length > 0
+                    ? parseFloat(String(prevYearActuals[0].row.spot_base).replace(',', '.'))
+                    : NaN;
 
-                    // Year-over-year comparisons (vs previous year-end)
-                    const yearNow = actuals.length > 0 ? new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date).getFullYear() : new Date().getFullYear();
-                    const lastYear = yearNow - 1;
-                    const prevYearActuals = actuals
-                        .map(r => ({ row: r, date: new Date(r.date || r.Date) }))
-                        .filter(item => !isNaN(item.date) && item.date.getFullYear() === lastYear)
-                        .sort((a, b) => b.date - a.date);
+                // Build per-quarter data: {label, spot, pctVsCurrent, pctVsEoy}
+                const qData = qForecasts.map(q => {
+                    if (!q.row) return { label: q.label, spot: null, pctCurr: null, pctEoy: null };
+                    const spot = parseFloat(q.row.spot_base);
+                    const pctCurr = (!isNaN(spot) && currentSpotNum && currentSpotNum !== 0)
+                        ? ((spot / currentSpotNum - 1) * 100) : null;
+                    const pctEoy = (!isNaN(spot) && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0)
+                        ? ((spot / prevYearEndSpot - 1) * 100) : null;
+                    return { label: q.label, spot, pctCurr, pctEoy };
+                });
 
-                    if (prevYearActuals.length > 0) {
-                        const prevYearEndSpotValue = parseFloat(String(prevYearActuals[0].row.spot_base).replace(',', '.'));
-                        if (!isNaN(prevYearEndSpotValue)) {
-                            if (forecasts.length >= 1) {
-                                const spot1m = parseFloat(forecasts[0].spot_base);
-                                if (!isNaN(spot1m)) pct1mYoY = ((spot1m / prevYearEndSpotValue - 1) * 100).toFixed(2);
-                            }
-                            if (forecasts.length >= 3) {
-                                const spot3m = parseFloat(forecasts[2].spot_base);
-                                if (!isNaN(spot3m)) pct3mYoY = ((spot3m / prevYearEndSpotValue - 1) * 100).toFixed(2);
-                            }
-                            if (forecasts.length >= 6) {
-                                const spot6m = parseFloat(forecasts[5].spot_base);
-                                if (!isNaN(spot6m)) pct6mYoY = ((spot6m / prevYearEndSpotValue - 1) * 100).toFixed(2);
-                            }
-                            if (forecasts.length >= 12) {
-                                const spot12m = parseFloat(forecasts[11].spot_base);
-                                if (!isNaN(spot12m)) pct12mYoY = ((spot12m / prevYearEndSpotValue - 1) * 100).toFixed(2);
-                            }
-                        }
-                    }
+                // Format currentDate as dd-mm-yyyy for display
+                const fmtDateDMY = (raw) => {
+                    const d = new Date(raw);
+                    if (isNaN(d)) return raw || '-';
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    return `${dd}-${mm}-${yyyy}`;
+                };
+                const currentDateFmt = fmtDateDMY(currentDate);
+
+                // Update the "Tỷ giá hiện tại" column header with date (once, from first market)
+                if (mkt === mkts[0]) {
+                    const colHdr = document.getElementById('col-current-spot');
+                    if (colHdr) colHdr.innerHTML = `Tỷ giá hiện tại<br><span class="font-black">${currentDateFmt}</span>`;
                 }
+
+                // % change of current spot vs prev year-end (show 0.00% if same)
+                const pctCurrVsEoy = (!isNaN(currentSpotNum) && currentSpotNum !== null && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0)
+                    ? ((currentSpotNum / prevYearEndSpot - 1) * 100) : null;
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
-                // Use mode-based percentages
-                const usePct1m = comparisonMode === 'eoy' ? pct1mYoY : pct1m;
-                const usePct3m = comparisonMode === 'eoy' ? pct3mYoY : pct3m;
-                const usePct6m = comparisonMode === 'eoy' ? pct6mYoY : pct6m;
-                const usePct12m = comparisonMode === 'eoy' ? pct12mYoY : pct12m;
-                const pct1mNum = isNaN(usePct1m) ? 0 : parseFloat(usePct1m);
-                const pct3mNum = isNaN(usePct3m) ? 0 : parseFloat(usePct3m);
-                const pct6mNum = isNaN(usePct6m) ? 0 : parseFloat(usePct6m);
-                const pct12mNum = isNaN(usePct12m) ? 0 : parseFloat(usePct12m);
 
-                tr.innerHTML = `
+                const formatCurrentPct = (v) => {
+                    if (v === null || v === undefined || isNaN(v)) return '0.00%';
+                    const sign = v > 0 ? '+' : '';
+                    return `${sign}${v.toFixed(2)}%`;
+                };
+                const pctCurrDisplay = comparisonMode === 'eoy' ? pctCurrVsEoy : 0;
+                const currPctNum = pctCurrDisplay !== null ? pctCurrDisplay : 0;
+                const currColor = currPctNum > 0 ? 'text-red-600' : currPctNum < 0 ? 'text-green-600' : 'text-slate-500';
+                const currArrow = currPctNum > 0 ? '▲' : currPctNum < 0 ? '▼' : '→';
+
+                let tdCells = `
                     <td class="py-3 px-6 font-bold text-slate-800">${mkt}</td>
                     <td class="py-3 px-6 font-semibold text-slate-700">${countryName}</td>
-                    <td class="py-3 px-6 text-center font-semibold text-slate-900">${currentSpot} <span class="text-xs text-slate-400">(${currentDate})</span></td>
-                    <td class="py-3 px-6 text-center font-medium ${pct1mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct1m !== "-" ? usePct1m + "%" : "-"}</td>
-                    <td class="py-3 px-6 text-center font-medium ${pct3mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct3m !== "-" ? usePct3m + "%" : "-"}</td>
-                    <td class="py-3 px-6 text-center font-medium ${pct6mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct6m !== "-" ? usePct6m + "%" : "-"}</td>
-                    <td class="py-3 px-6 text-center font-medium ${pct12mNum > 0 ? 'text-red-600' : 'text-green-600'}">${usePct12m !== "-" ? usePct12m + "%" : "-"}</td>
-                `;
+                    <td class="py-3 px-4 text-center">
+                        <div class="font-bold text-slate-900 text-sm">${currentSpot}</div>
+                        <div class="text-xs font-semibold ${currColor}">${currArrow} ${formatCurrentPct(pctCurrDisplay)}</div>
+                    </td>`;
+
+                const formatDelta = (v) => {
+                    if (v === null || v === undefined || isNaN(v)) return '-';
+                    const sign = v > 0 ? '+' : '';
+                    return `${sign}${v.toFixed(2)}%`;
+                };
+
+                qData.forEach(q => {
+                    const pct = comparisonMode === 'eoy' ? q.pctEoy : q.pctCurr;
+                    const pctNum = pct !== null ? pct : NaN;
+                    const color = isNaN(pctNum) ? 'text-slate-500' : pctNum > 0 ? 'text-red-600' : 'text-green-600';
+                    const arrow = isNaN(pctNum) ? '' : pctNum > 0 ? '▲' : pctNum < 0 ? '▼' : '→';
+                    const spotDisp = (q.spot !== null && !isNaN(q.spot)) ? fmtNum(q.spot) : '-';
+                    const pctDisp = formatDelta(pct);
+                    tdCells += `
+                    <td class="py-3 px-4 text-center">
+                        <div class="font-bold text-slate-800 text-sm">${spotDisp}</div>
+                        <div class="text-xs font-semibold ${color}">${arrow} ${pctDisp}</div>
+                    </td>`;
+                });
+
+                tr.innerHTML = tdCells;
                 summaryBody.appendChild(tr);
 
-                // Brief from computed data (simplified)
+                // Brief from computed data
                 const brief = document.createElement('div');
                 brief.className = "p-3 bg-slate-50 rounded-lg border border-slate-200 brief-compact";
-                const briefText = (rawData.exec_summary || []).find(r => (r.market || r.Market) === mkt);
 
                 // First forecast row (primary source for flags + scores)
                 const firstForecastRow = firstForecast;
@@ -671,20 +757,6 @@
                     const key = String(r.market || r.Market || '').trim().toUpperCase();
                     return key === mkt.toUpperCase();
                 });
-
-                const formatPctValue = (v) => {
-                    if (v === undefined || v === null || v === '') return '-';
-                    const num = parseFloat(String(v).replace(',', '.'));
-                    if (isNaN(num)) return v;
-                    return `${num.toFixed(2)}%`;
-                };
-
-                const formatScore = (v) => {
-                    if (v === undefined || v === null || v === '') return '-';
-                    const n = parseFloat(String(v).replace(',', '.'));
-                    if (isNaN(n)) return v;
-                    return n.toFixed(2);
-                };
 
                 const scoreFields = [
                     { key: 'vol_score', label: 'Vol (biến động tỷ giá)' },
@@ -705,10 +777,8 @@
 
                 const scoreComment = (score, indicatorKey) => {
                     const x = parseFloat(String(score).replace(',', '.'));
-                    // Treat explicitly missing values as undetermined
                     if (score === '-' || score === undefined || score === null || String(score).trim() === '' || isNaN(x))
                         return '<span class="inline-flex items-center gap-1 text-gray-500 text-xs font-medium">⚪ Chưa xác định</span>';
-
                     const thresholds = indicatorThresholds[indicatorKey] || { high: 50, medium: 25 };
                     if (x >= thresholds.high)
                         return '<span class="inline-flex items-center gap-1 text-red-600 text-xs font-bold">🔴 Rủi ro cao</span>';
@@ -719,36 +789,18 @@
 
                 if (riskRow) {
                     scoreFields.forEach(field => {
-                        // Intelligent lookup for score columns (handling 0 as a valid value)
                         let rawScore = '-';
                         for (let k of [field.key, field.key.toLowerCase(), field.key.toUpperCase()]) {
                             if (riskRow[k] !== undefined && riskRow[k] !== null && String(riskRow[k]).trim() !== '') {
-                                rawScore = riskRow[k];
-                                break;
+                                rawScore = riskRow[k]; break;
                             }
                         }
                         scoreLines.push(`<strong>${field.label}:</strong> ${scoreComment(rawScore, field.key)}`);
                     });
                 }
 
-                const formatDelta = (v) => {
-                    if (v === '-') return '-';
-                    const num = parseFloat(String(v).replace(',', '.'));
-                    if (isNaN(num)) return '-';
-                    const sign = num > 0 ? '+' : num < 0 ? '' : '+';
-                    return `${sign}${num.toFixed(2)}%`;
-                };
-
-                const forecastLine = `1M: ${formatDelta(pct1m)} 3M: ${formatDelta(pct3m)} 6M: ${formatDelta(pct6m)} 12M: ${formatDelta(pct12m)}`;
-
-                // Determine year for display (already calculated in YoY block, so recalculate for consistency)
-                const yearNow = (actuals.length > 0 && new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date).getFullYear()) || new Date().getFullYear();
-                const lastYear = yearNow - 1;
+                // Determine end-of-last-year spot
                 let endYearSpot = '-';
-                const prevYearActuals = actuals
-                    .map(r => ({ row: r, date: new Date(r.date || r.Date) }))
-                    .filter(item => !isNaN(item.date) && item.date.getFullYear() === lastYear)
-                    .sort((a, b) => b.date - a.date);
                 if (prevYearActuals.length > 0) {
                     const s = prevYearActuals[0].row.spot_base;
                     const parsedSpot = parseFloat(String(s).replace(',', '.'));
@@ -761,16 +813,25 @@
                 });
 
                 const eventLines = marketEvents.map(ev => {
-                    const date = ev.date || ev.Date || ev.DateTime || ev.datetime || '';
                     const text = ev.content || ev.Content || ev.event || ev.Event || ev.headline || ev.Headline || ev.description || ev.Description || '';
                     return `${text}`;
                 });
 
-                // Strategic Metrics Grid
-                const s1m = forecasts.length >= 1 ? fmtNum(forecasts[0].spot_base) : '-';
-                const s3m = forecasts.length >= 3 ? fmtNum(forecasts[2].spot_base) : '-';
-                const s6m = forecasts.length >= 6 ? fmtNum(forecasts[5].spot_base) : '-';
-                const s12m = forecasts.length >= 12 ? fmtNum(forecasts[11].spot_base) : '-';
+                // Build quarter forecast rows for brief
+                const qBriefRows = qData.map(q => {
+                    const spotDisp = (q.spot !== null && !isNaN(q.spot)) ? fmtNum(q.spot) : '-';
+                    const pctCurrDisp = formatDelta(q.pctCurr);
+                    const pctEoyDisp = formatDelta(q.pctEoy);
+                    const pctNum = q.pctCurr !== null ? q.pctCurr : NaN;
+                    const colorClass = isNaN(pctNum) ? 'text-slate-500' : pctNum > 0 ? 'text-red-600' : 'text-green-700';
+                    const arrow = isNaN(pctNum) ? '' : pctNum > 0 ? '▲' : pctNum < 0 ? '▼' : '→';
+                    return `<div class="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
+                        <span class="text-slate-500 font-semibold w-16">${q.label}</span>
+                        <span class="font-bold text-slate-800">${spotDisp}</span>
+                        <span class="font-bold ${colorClass}">${arrow} ${pctCurrDisp}</span>
+                        <span class="text-slate-400 text-[10px]">(cuối năm tr: ${pctEoyDisp})</span>
+                    </div>`;
+                }).join('');
 
                 brief.innerHTML = `
                     <div class="flex justify-between items-start mb-4 pb-3 border-b border-slate-200">
@@ -781,14 +842,14 @@
                         <span class="risk-${trafficLight.toLowerCase()} shadow-sm px-3 py-1.5 rounded-full font-bold text-[10px]">${trafficLight}</span>
                     </div>
 
-                    <!-- Tỷ giá Section -->
+                    <!-- Tỷ giá hiện tại -->
                     <div class="mb-4">
                         <div class="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
                              <div class="w-1 h-3 bg-blue-600"></div> Tỷ giá
                         </div>
                         <div class="space-y-1 pl-3 border-l border-slate-100">
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-500">Cuối năm trước:</span>
+                                <span class="text-slate-500">Cuối năm trước (${yearNow - 1}):</span>
                                 <span class="font-bold text-slate-700">${endYearSpot}</span>
                             </div>
                             <div class="flex justify-between text-xs">
@@ -798,55 +859,13 @@
                         </div>
                     </div>
 
-                    <!-- Dự báo Section -->
+                    <!-- Dự báo theo quý -->
                     <div class="mb-4">
                         <div class="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
-                             <div class="w-1 h-3 bg-blue-600"></div> Dự báo
+                             <div class="w-1 h-3 bg-blue-600"></div> Dự báo theo quý
                         </div>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-3 border-l border-slate-100">
-                            <div class="flex justify-between text-xs">
-                                <span class="text-slate-400 font-medium">1M:</span>
-                                <span class="font-bold text-slate-700">${s1m}</span>
-                            </div>
-                            <div class="flex justify-between text-xs">
-                                <span class="text-slate-400 font-medium">3M:</span>
-                                <span class="font-bold text-slate-700">${s3m}</span>
-                            </div>
-                            <div class="flex justify-between text-xs">
-                                <span class="text-slate-400 font-medium">6M:</span>
-                                <span class="font-bold text-slate-700">${s6m}</span>
-                            </div>
-                            <div class="flex justify-between text-xs">
-                                <span class="text-slate-400 font-medium">12M:</span>
-                                <span class="font-bold text-slate-700">${s12m}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- So sánh Section -->
-                    <div class="mb-4">
-                        <div class="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
-                             <div class="w-1 h-3 bg-blue-600"></div> So sánh dự báo
-                        </div>
-                        <div class="space-y-3 pl-3 border-l border-slate-100">
-                            <div>
-                                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">So với hiện tại:</div>
-                                <div class="flex flex-wrap gap-2">
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct1m) > 0 ? 'text-red-600' : 'text-green-700'}">1M${formatDelta(pct1m)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct3m) > 0 ? 'text-red-600' : 'text-green-700'}">3M${formatDelta(pct3m)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct6m) > 0 ? 'text-red-600' : 'text-green-700'}">6M${formatDelta(pct6m)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct12m) > 0 ? 'text-red-600' : 'text-green-700'}">12M${formatDelta(pct12m)}</span>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">So với cuối năm trước:</div>
-                                <div class="flex flex-wrap gap-2">
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct1mYoY) > 0 ? 'text-red-600' : 'text-green-700'}">1M${formatDelta(pct1mYoY)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct3mYoY) > 0 ? 'text-red-600' : 'text-green-700'}">3M${formatDelta(pct3mYoY)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct6mYoY) > 0 ? 'text-red-600' : 'text-green-700'}">6M${formatDelta(pct6mYoY)}</span>
-                                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-50 ${parseFloat(pct12mYoY) > 0 ? 'text-red-600' : 'text-green-700'}">12M${formatDelta(pct12mYoY)}</span>
-                                </div>
-                            </div>
+                        <div class="pl-3 border-l border-slate-100">
+                            ${qBriefRows || '<div class="text-xs text-slate-400 italic">Không có dữ liệu dự báo</div>'}
                         </div>
                     </div>
 
@@ -1022,65 +1041,91 @@
 
 
         function updateComparisonChart(mode) {
-            // Use same sorted order as the summary table
             const markets = Object.keys(rawData.charts || {}).sort();
-            const seriesData = { '1T': [], '3T': [], '6T': [], '12T': [] };
+
+            // Determine quarter labels from first market
+            let globalQLabels = [];
+            for (const mkt of markets) {
+                const points = rawData.charts[mkt] || [];
+                const actuals = points.filter(p => p.data_type === 'Actual' || p.data_type === 'actual');
+                const forecasts = points.filter(p => p.data_type === 'Forecast' || p.data_type === 'forecast')
+                    .sort((a, b) => new Date(a.date || a.Date) - new Date(b.date || b.Date));
+                if (actuals.length > 0 && forecasts.length > 0) {
+                    const lastActualDate = new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date);
+                    globalQLabels = getQuarterEndForecasts(forecasts, lastActualDate).map(q => q.label);
+                    break;
+                }
+            }
+            if (globalQLabels.length === 0) globalQLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+            // Build series data per quarter
+            const seriesData = globalQLabels.map(() => []);
 
             markets.forEach(mkt => {
                 const points = rawData.charts[mkt] || [];
-                const actuals = points.filter(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
-                const forecasts = points.filter(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'));
+                const actuals = points.filter(p => p.data_type === 'Actual' || p.data_type === 'actual');
+                const forecasts = points.filter(p => p.data_type === 'Forecast' || p.data_type === 'forecast')
+                    .sort((a, b) => new Date(a.date || a.Date) - new Date(b.date || b.Date));
 
-                const currentSpot = actuals.length > 0 ? actuals[actuals.length - 1].spot_base : 1;
-                let base = currentSpot;
+                const lastActualDate = actuals.length > 0 ? new Date(actuals[actuals.length - 1].date || actuals[actuals.length - 1].Date) : null;
+                const lastActualSpot = actuals.length > 0 ? parseFloat(actuals[actuals.length - 1].spot_base) : NaN;
 
+                let base = lastActualSpot;
                 if (mode === 'eoy') {
-                    const decPoints = actuals.filter(p => {
-                        const d = String(p.date || p.Date || "");
-                        return d.includes("-12-");
-                    });
-                    if (decPoints.length > 0) {
-                        base = decPoints[decPoints.length - 1].spot_base;
-                    }
+                    const decPoints = actuals.filter(p => String(p.date || p.Date || '').includes('-12-'));
+                    if (decPoints.length > 0) base = parseFloat(decPoints[decPoints.length - 1].spot_base);
                 }
 
-                const getPct = (idx) => {
-                    if (forecasts.length > idx && base > 0) {
-                        return ((forecasts[idx].spot_base / base - 1) * 100).toFixed(2);
+                const qForecasts = getQuarterEndForecasts(forecasts, lastActualDate);
+                qForecasts.forEach((q, i) => {
+                    if (q.row && !isNaN(base) && base > 0) {
+                        const spotVal = parseFloat(q.row.spot_base);
+                        seriesData[i].push({
+                            value: ((spotVal / base - 1) * 100).toFixed(2),
+                            spot: fmtNum(spotVal)
+                        });
+                    } else {
+                        seriesData[i].push({ value: 0, spot: '-' });
                     }
-                    return 0;
-                };
-
-                seriesData['1T'].push(getPct(0));
-                seriesData['3T'].push(getPct(2));
-                seriesData['6T'].push(getPct(5));
-                seriesData['12T'].push(getPct(11));
+                });
             });
 
+            const colors = ['#3b82f6', '#0ea5e9', '#2dd4bf', '#10b981'];
             const labelConfig = { show: true, position: 'top', formatter: '{c}%', fontSize: 9 };
 
             const option = {
                 tooltip: {
-                    trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (params) => {
-                        let res = `<div style="font-weight:bold;margin-bottom:4px;">${params[0].name} (so với ${mode === 'eoy' ? 'cuối năm trước' : 'hiện tại'})</div>`;
+                    trigger: 'axis', axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                    borderColor: '#e2e8f0', borderWidth: 1, textStyle: { color: '#0f172a' },
+                    formatter: (params) => {
+                        let res = `<div style="font-weight:700;margin-bottom:8px;border-bottom:1px solid #f1f5f9;padding-bottom:5px;font-size:13px">${params[0].name} <span style="font-weight:500;color:#64748b">(so với ${mode === 'eoy' ? 'cuối năm trước' : 'hiện tại'})</span></div>`;
                         params.forEach(p => {
-                            res += `<div style="display:flex;justify-content:space-between;gap:20px;">
-                            <span>${p.seriesName}:</span>
-                            <span style="font-weight:bold;color:${p.color}">${p.value}%</span>
-                        </div>`;
+                            const spotText = p.data && p.data.spot !== undefined ? p.data.spot : '-';
+                            const valSign = p.value > 0 ? '+' : '';
+                            res += `<div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:4px;font-size:12px">
+                                <span style="display:flex;align-items:center;">
+                                    <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color};margin-right:6px"></span>
+                                    <span style="color:#475569;font-weight:500">${p.seriesName}:</span>
+                                </span>
+                                <div style="display:flex;align-items:baseline;gap:8px">
+                                    <span style="font-weight:700;color:${p.color}">${p.value !== undefined ? valSign + p.value + '%' : '-'}</span>
+                                    <span style="color:#64748b;font-size:11px;width:60px;text-align:right">(${spotText})</span>
+                                </div>
+                            </div>`;
                         });
                         return res;
                     }
                 },
-                legend: { data: ['1T', '3T', '6T', '12T'], bottom: 0 },
+                legend: { data: globalQLabels, bottom: 0 },
                 xAxis: { type: 'category', data: markets },
                 yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
-                series: [
-                    { name: '1T', type: 'bar', data: seriesData['1T'], itemStyle: { color: '#3b82f6' }, label: labelConfig },
-                    { name: '3T', type: 'bar', data: seriesData['3T'], itemStyle: { color: '#0ea5e9' }, label: labelConfig },
-                    { name: '6T', type: 'bar', data: seriesData['6T'], itemStyle: { color: '#2dd4bf' }, label: labelConfig },
-                    { name: '12T', type: 'bar', data: seriesData['12T'], itemStyle: { color: '#10b981' }, label: labelConfig }
-                ]
+                series: globalQLabels.map((lbl, i) => ({
+                    name: lbl, type: 'bar',
+                    data: seriesData[i] || [],
+                    itemStyle: { color: colors[i % colors.length] },
+                    label: labelConfig
+                }))
             };
             comparisonChart.setOption(option, true);
         }
