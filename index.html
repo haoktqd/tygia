@@ -175,12 +175,13 @@
                 </h2>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left">
+                <table class="w-full text-left table-fixed">
                     <thead class="table-header">
                         <tr id="summary-header-row">
-                            <th class="py-2 px-6">Thị trường</th>
-                            <th class="py-2 px-6">Quốc gia</th>
-                            <th id="col-current-spot" class="py-2 px-6 text-center">Tỷ giá hiện tại</th>
+                            <th class="py-2 px-6 w-24">Thị trường</th>
+                            <th class="py-2 px-6 w-36">Quốc gia</th>
+                            <th id="col-eoy-spot" class="py-2 px-4 text-center w-32">Cuối năm trước</th>
+                            <th id="col-current-spot" class="py-2 px-4 text-center w-32">Hiện tại</th>
                             <!-- Quarter columns filled dynamically by JS -->
                         </tr>
                     </thead>
@@ -610,7 +611,7 @@
                 existingQths.forEach(th => th.remove());
                 quarterLabels.forEach(lbl => {
                     const th = document.createElement('th');
-                    th.className = 'py-2 px-4 text-center q-header';
+                    th.className = 'py-2 px-4 text-center q-header w-32';
                     th.innerHTML = `Dự báo<br><span class="font-black">${lbl}</span>`;
                     summaryHeaderRow.appendChild(th);
                 });
@@ -695,7 +696,10 @@
                 // Update the "Tỷ giá hiện tại" column header with date (once, from first market)
                 if (mkt === mkts[0]) {
                     const colHdr = document.getElementById('col-current-spot');
-                    if (colHdr) colHdr.innerHTML = `Tỷ giá hiện tại<br><span class="font-black">${currentDateFmt}</span>`;
+                    if (colHdr) colHdr.innerHTML = `Hiện tại<br><span class="font-black text-[0.65rem] opacity-70">${currentDateFmt}</span>`;
+
+                    const colHdrEoy = document.getElementById('col-eoy-spot');
+                    if (colHdrEoy) colHdrEoy.innerHTML = `Cuối năm trước<br><span class="font-black text-[0.65rem] opacity-70">31-12-${lastYear}</span>`;
                 }
 
                 // % change of current spot vs prev year-end (show 0.00% if same)
@@ -710,6 +714,13 @@
                     const sign = v > 0 ? '+' : '';
                     return `${sign}${v.toFixed(2)}%`;
                 };
+
+                // Pct display for EOY cell
+                const pctEoyToDisplay = comparisonMode === 'current' ? ((prevYearEndSpot / currentSpotNum - 1) * 100) : 0;
+                const eoyPctNum = pctEoyToDisplay !== null ? pctEoyToDisplay : 0;
+                const eoyColor = eoyPctNum > 0 ? 'text-red-600' : eoyPctNum < 0 ? 'text-green-600' : 'text-slate-500';
+                const eoyArrow = eoyPctNum > 0 ? '▲' : eoyPctNum < 0 ? '▼' : '→';
+
                 const pctCurrDisplay = comparisonMode === 'eoy' ? pctCurrVsEoy : 0;
                 const currPctNum = pctCurrDisplay !== null ? pctCurrDisplay : 0;
                 const currColor = currPctNum > 0 ? 'text-red-600' : currPctNum < 0 ? 'text-green-600' : 'text-slate-500';
@@ -718,6 +729,10 @@
                 let tdCells = `
                     <td class="py-3 px-6 font-bold text-slate-800">${mkt}</td>
                     <td class="py-3 px-6 font-semibold text-slate-700">${countryName}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="font-bold text-slate-800 text-sm">${isNaN(prevYearEndSpot) ? '-' : fmtNum(prevYearEndSpot)}</div>
+                        <div class="text-xs font-semibold ${eoyColor}">${eoyArrow} ${formatCurrentPct(pctEoyToDisplay)}</div>
+                    </td>
                     <td class="py-3 px-4 text-center">
                         <div class="font-bold text-slate-900 text-sm">${currentSpot}</div>
                         <div class="text-xs font-semibold ${currColor}">${currArrow} ${formatCurrentPct(pctCurrDisplay)}</div>
