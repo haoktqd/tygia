@@ -693,16 +693,17 @@
                 let prevMonthEndSpot = NaN;
                 let prevMonthEndDateStr = '-';
                 if (lastActualDate) {
-                    const targetPrevMonthEnd = new Date(lastActualDate.getFullYear(), lastActualDate.getMonth(), 0);
+                    const today = new Date();
+                    const targetPrevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+                    // Always show the theoretical end-of-last-month date in the header
+                    prevMonthEndDateStr = fmtDateDMY(targetPrevMonthEnd);
+                    // Find closest actual data on or before that date for the spot value
                     const candidates = actuals
                         .map(r => ({ row: r, date: new Date(r.date || r.Date) }))
                         .filter(item => !isNaN(item.date) && item.date <= targetPrevMonthEnd)
                         .sort((a, b) => b.date - a.date);
                     if (candidates.length > 0) {
                         prevMonthEndSpot = parseFloat(String(candidates[0].row.spot_base).replace(',', '.'));
-                        prevMonthEndDateStr = fmtDateDMY(candidates[0].date);
-                    } else {
-                        prevMonthEndDateStr = fmtDateDMY(targetPrevMonthEnd);
                     }
                 }
 
