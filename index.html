@@ -1015,26 +1015,9 @@
                             <div class="w-1.5 h-3 bg-indigo-600 rounded-xs"></div>
                             <h4 class="text-base font-bold text-slate-900 uppercase tracking-tight">${row.market || row.Market || '-'} Markets Insight</h4>
                         </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                            <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Cơ sở / Basis 2024</span>
-                                <span class="text-xs font-bold text-slate-700">${fmtNum(row.basis2024 || row.Basis2024)}</span>
-                            </div>
-                            <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Cơ sở / Basis 2025</span>
-                                <span class="text-xs font-bold text-slate-700">${fmtNum(row.basis2025 || row.Basis2025)}</span>
-                            </div>
-                            <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Biên độ / Range 2024</span>
-                                <span class="text-xs font-bold text-slate-700">${fmtNum(row.range24low || row.Range24Low)} – ${fmtNum(row.range24high || row.Range24High)}</span>
-                            </div>
-                            <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Biên độ / Range 2025</span>
-                                <span class="text-xs font-bold text-slate-700">${fmtNum(row.range25low || row.Range25Low)} – ${fmtNum(row.range25high || row.Range25High)}</span>
-                            </div>
-                        </div>
                         <div class="space-y-3 pl-1">
                             ${(row.specialnotes || row.SpecialNotes) ? `<div><span class="text-[11px] font-bold text-slate-400 uppercase block mb-0.5">⚠️ Lưu ý đặc biệt:</span><p class="text-xs text-amber-800 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100 italic leading-relaxed">${row.specialnotes || row.SpecialNotes}</p></div>` : ''}
+                            ${(row.summary || row.Summary) ? `<div><span class="text-[11px] font-bold text-slate-400 uppercase block mb-0.5">📝 Tóm tắt:</span><p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/30 p-3 rounded-lg border border-slate-100">${row.summary || row.Summary}</p></div>` : ''}
                             ${(row.explanation || row.Explanation) ? `<div><span class="text-[11px] font-bold text-slate-400 uppercase block mb-0.5">📊 Phân tích & Luận điểm vĩ mô:</span><p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/30 p-3 rounded-lg border border-slate-100">${row.explanation || row.Explanation}</p></div>` : ''}
                         </div>
                     `;
