@@ -114,7 +114,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
             </svg>
-            Tải File Forecasts (.xlsx)
+            Tải File .xlsx
         </button>
     </div>
 
@@ -159,6 +159,10 @@
                 </div>
             </div>
             <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 self-start sm:self-center">
+                <button id="btn-vs-plan"
+                    class="px-4 py-2 text-xs font-semibold rounded-lg text-amber-600 hover:text-amber-700 bg-transparent transition-all">
+                    So với Kế hoạch
+                </button>
                 <button id="btn-vs-current"
                     class="px-4 py-2 text-xs font-bold rounded-lg bg-white text-slate-800 shadow-sm border border-slate-200/40 transition-all">
                     So với hiện tại
@@ -301,7 +305,8 @@
             data_quality: "1475296298",
             exec_summary: "996121047",
             forecasts: "735040267",
-            events: "2086919829"
+            events: "2086919829",
+            plan_vtg: "487640710"
         };
 
         const MKT_MAP = {
@@ -316,7 +321,7 @@
         let rawData = {
             world_update: [], exec_summary: [], scorecard: [],
             data_quality: [], break_events: [], expert_reference: [],
-            risk_analysis: [], charts: {}
+            risk_analysis: [], charts: {}, plan: {}
         };
         let chartModes = {}; // track display mode per chartId
 
@@ -339,6 +344,27 @@
             const worksheet = XLSX.utils.json_to_sheet(itemRows, { header: headers });
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Forecasts');
+
+            const planMkts = Object.keys(rawData.plan || {}).sort();
+            if (planMkts.length > 0) {
+                const ymKeys = Array.from(new Set(planMkts.flatMap(mkt => Object.keys(rawData.plan[mkt] || {})))).sort();
+                const planRows = ymKeys.map(ym => {
+                    const [y, m] = ym.split('-').map(Number);
+                    const lastDay = new Date(y, m, 0);
+                    const dd = String(lastDay.getDate()).padStart(2, '0');
+                    const mm = String(m).padStart(2, '0');
+                    const row = { Date: `${y}-${mm}-${dd}` };
+                    planMkts.forEach(mkt => {
+                        const v = rawData.plan[mkt][ym];
+                        row[mkt] = (v !== undefined && v !== null) ? v : '';
+                    });
+                    return row;
+                });
+                const planHeaders = ['Date', ...planMkts];
+                const planWorksheet = XLSX.utils.json_to_sheet(planRows, { header: planHeaders });
+                XLSX.utils.book_append_sheet(workbook, planWorksheet, 'Plan VTG');
+            }
+
             XLSX.writeFile(workbook, 'Forecasts.xlsx');
         }
 
@@ -437,7 +463,7 @@
                 rawData = {
                     world_update: [], exec_summary: [], scorecard: [],
                     data_quality: [], break_events: [], expert_reference: [],
-                    risk_analysis: [], events: [], charts: {}
+                    risk_analysis: [], events: [], charts: {}, plan: {}
                 };
 
                 results.forEach(r => {
@@ -453,6 +479,24 @@
                                 if (!rawData.charts[mkt]) rawData.charts[mkt] = [];
                                 rawData.charts[mkt].push(row);
                             }
+                        });
+                    } else if (r.key === 'plan_vtg') {
+                        // Wide format: one column per market code, one row per month-end date.
+                        r.data.forEach(row => {
+                            const rawDate = row.date || row.Date;
+                            const d = new Date(rawDate);
+                            if (isNaN(d)) return;
+                            const ymKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            Object.keys(row).forEach(col => {
+                                if (col === 'date') return;
+                                const mktCode = col.toUpperCase();
+                                const val = row[col];
+                                if (val === '' || val === null || val === undefined) return;
+                                const num = Number(val);
+                                if (isNaN(num)) return;
+                                if (!rawData.plan[mktCode]) rawData.plan[mktCode] = {};
+                                rawData.plan[mktCode][ymKey] = num;
+                            });
                         });
                     } else {
                         rawData[r.key] = r.data;
@@ -524,6 +568,15 @@
                 }
                 return null;
             });
+        }
+
+        function getPlanValue(mkt, dateStr) {
+            const planMap = rawData.plan && rawData.plan[mkt];
+            if (!planMap) return null;
+            const d = new Date(dateStr);
+            if (isNaN(d)) return null;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return (key in planMap) ? planMap[key] : null;
         }
 
         function setChartMode(chartId, mkt, mode) {
@@ -707,7 +760,7 @@
                 }
 
                 const qData = qForecasts.map(q => {
-                    if (!q.row) return { label: q.label, spot: null, pctCurr: null, pctEoy: null, pctLm: null };
+                    if (!q.row) return { label: q.label, spot: null, pctCurr: null, pctEoy: null, pctLm: null, plan: null, pctPlan: null };
                     const spot = parseFloat(q.row.spot_base);
                     const pctCurr = (!isNaN(spot) && currentSpotNum && currentSpotNum !== 0)
                         ? ((spot / currentSpotNum - 1) * 100) : null;
@@ -715,8 +768,20 @@
                         ? ((spot / prevYearEndSpot - 1) * 100) : null;
                     const pctLm = (!isNaN(spot) && !isNaN(prevMonthEndSpot) && prevMonthEndSpot !== 0)
                         ? ((spot / prevMonthEndSpot - 1) * 100) : null;
-                    return { label: q.label, spot, pctCurr, pctEoy, pctLm };
+                    const plan = getPlanValue(mkt, q.qDate);
+                    const pctPlan = (!isNaN(spot) && plan != null && plan !== 0) ? ((spot / plan - 1) * 100) : null;
+                    return { label: q.label, spot, pctCurr, pctEoy, pctLm, plan, pctPlan };
                 });
+
+                const currentPlan = currentDate !== '-' ? getPlanValue(mkt, currentDate) : null;
+                const pctVsPlanCurrent = (currentSpotNum && currentPlan != null && currentPlan !== 0)
+                    ? ((currentSpotNum / currentPlan - 1) * 100) : null;
+                const eoyPlan = getPlanValue(mkt, `${lastYear}-12-31`);
+                const pctVsPlanEoy = (!isNaN(prevYearEndSpot) && eoyPlan != null && eoyPlan !== 0)
+                    ? ((prevYearEndSpot / eoyPlan - 1) * 100) : null;
+                const lmPlan = !isNaN(prevMonthEndSpot) ? getPlanValue(mkt, prevMonthEndDateStr.split('-').reverse().join('-')) : null;
+                const pctVsPlanLm = (!isNaN(prevMonthEndSpot) && lmPlan != null && lmPlan !== 0)
+                    ? ((prevMonthEndSpot / lmPlan - 1) * 100) : null;
 
                 const currentDateFmt = fmtDateDMY(currentDate);
 
@@ -747,6 +812,10 @@
                     pctEoyToDisplay = (!isNaN(prevYearEndSpot) && !isNaN(prevMonthEndSpot)) ? ((prevYearEndSpot / prevMonthEndSpot - 1) * 100) : null;
                     pctLmToDisplay = null;
                     pctCurrDisplay = (!isNaN(currentSpotNum) && !isNaN(prevMonthEndSpot)) ? ((currentSpotNum / prevMonthEndSpot - 1) * 100) : null;
+                } else if (comparisonMode === 'plan') {
+                    pctEoyToDisplay = pctVsPlanEoy;
+                    pctLmToDisplay = pctVsPlanLm;
+                    pctCurrDisplay = pctVsPlanCurrent;
                 }
 
                 const formatPctWithArrow = (v) => {
@@ -788,7 +857,7 @@
                 };
 
                 qData.forEach(q => {
-                    const pct = comparisonMode === 'eoy' ? q.pctEoy : comparisonMode === 'lm' ? q.pctLm : q.pctCurr;
+                    const pct = comparisonMode === 'eoy' ? q.pctEoy : comparisonMode === 'lm' ? q.pctLm : comparisonMode === 'plan' ? q.pctPlan : q.pctCurr;
                     const pctNum = pct !== null ? pct : NaN;
                     const color = isNaN(pctNum) ? 'text-slate-400' : pctNum > 0 ? 'text-rose-600' : 'text-emerald-600';
                     const arrow = isNaN(pctNum) ? '' : pctNum > 0 ? '▲' : pctNum < 0 ? '▼' : '—';
@@ -891,13 +960,18 @@
                     const lmNum = q.pctLm !== null ? q.pctLm : NaN;
                     const lmColorClass = isNaN(lmNum) ? 'text-slate-400' : lmNum > 0 ? 'text-rose-600' : 'text-emerald-600';
                     const lmArrow = isNaN(lmNum) ? '' : lmNum > 0 ? '▲' : lmNum < 0 ? '▼' : '—';
+                    const planNum = (q.pctPlan !== null && q.pctPlan !== undefined) ? q.pctPlan : NaN;
+                    const planColorClass = isNaN(planNum) ? 'text-slate-400' : planNum > 0 ? 'text-rose-600' : 'text-emerald-600';
+                    const planArrow = isNaN(planNum) ? '' : planNum > 0 ? '▲' : planNum < 0 ? '▼' : '—';
+                    const planDisp = formatDelta(q.pctPlan);
                     return `
-                    <div class="grid grid-cols-5 text-xs py-2 border-b border-slate-100 last:border-0 font-medium">
+                    <div class="grid grid-cols-6 text-xs py-2 border-b border-slate-100 last:border-0 font-medium">
                         <span class="text-slate-800 font-bold">${q.label}</span>
                         <span class="text-slate-700 text-right font-semibold">${spotDisp}</span>
                         <span class="${colorClass} text-right font-bold">${arrow} ${pctCurrDisp}</span>
                         <span class="${lmColorClass} text-right font-bold">${lmArrow} ${pctLmDisp}</span>
                         <span class="${eoyColorClass} text-right font-bold">${eoyArrow} ${pctEoyDisp}</span>
+                        <span class="${planColorClass} text-right font-bold">${planArrow} ${planDisp}</span>
                     </div>`;
                 }).join('');
 
@@ -916,21 +990,24 @@
                             <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cuối năm trước</span>
                                 <span class="text-xs font-bold text-slate-700">${endYearSpot}</span>
+                                ${(eoyPlan != null && pctVsPlanEoy !== null && !isNaN(pctVsPlanEoy)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanEoy > 0 ? '+' : ''}${pctVsPlanEoy.toFixed(2)}%</span>` : ''}
                             </div>
                             <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cuối tháng trước</span>
                                 <span class="text-xs font-bold text-slate-700">${isNaN(prevMonthEndSpot) ? '-' : fmtNum(prevMonthEndSpot)}</span>
+                                ${(lmPlan != null && pctVsPlanLm !== null && !isNaN(pctVsPlanLm)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanLm > 0 ? '+' : ''}${pctVsPlanLm.toFixed(2)}%</span>` : ''}
                             </div>
                             <div class="bg-blue-50/40 p-2.5 rounded-xl border border-blue-100/60">
                                 <span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider block mb-0.5">Giá Hiện Tại</span>
                                 <span class="text-xs font-bold text-blue-700">${currentSpot}</span>
+                                ${(currentPlan != null && pctVsPlanCurrent !== null && !isNaN(pctVsPlanCurrent)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanCurrent > 0 ? '+' : ''}${pctVsPlanCurrent.toFixed(2)}%</span>` : ''}
                             </div>
                         </div>
 
                         <!-- Forecast timeline -->
                         <div class="mb-5 bg-white border border-slate-200/60 rounded-xl p-3 shadow-xs">
-                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-5">
-                                <span class="text-center">Kỳ hạn</span> <span class="text-center">Tỷ giá</span> <span class="text-center">Vs hiện tại</span> <span class="text-center">Vs tháng trước</span> <span class="text-center">YTD</span>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-6">
+                                <span class="text-center">Kỳ hạn</span> <span class="text-center">Tỷ giá</span> <span class="text-center">Vs hiện tại</span> <span class="text-center">Vs tháng trước</span> <span class="text-center">YTD</span> <span class="text-center">Vs Kế hoạch</span>
                             </div>
                             ${qBriefRows ? qBriefRows : '<div class="text-xs text-slate-400 italic py-2 text-center">Không có dữ liệu dự báo</div>'}
                         </div>
@@ -1066,13 +1143,22 @@
             comparisonChart = echarts.init(chartDom);
             updateComparisonChart(currentComparisonMode);
 
+            const btnPlan = document.getElementById('btn-vs-plan');
             const btnCurrent = document.getElementById('btn-vs-current');
             const btnLm = document.getElementById('btn-vs-lm');
             const btnEoy = document.getElementById('btn-vs-eoy');
-            if (btnCurrent && btnLm && btnEoy) {
+            if (btnCurrent && btnLm && btnEoy && btnPlan) {
+                btnPlan.onclick = () => {
+                    currentComparisonMode = 'plan';
+                    updateComparisonStyle(btnPlan, btnCurrent, btnLm, btnEoy);
+                    updateComparisonChart('plan');
+                    const lbl = document.getElementById('summary-mode-label');
+                    if (lbl) lbl.textContent = 'So với Kế hoạch';
+                    initDashboard('plan');
+                };
                 btnCurrent.onclick = () => {
                     currentComparisonMode = 'current';
-                    updateComparisonStyle(btnCurrent, btnLm, btnEoy);
+                    updateComparisonStyle(btnCurrent, btnPlan, btnLm, btnEoy);
                     updateComparisonChart('current');
                     const lbl = document.getElementById('summary-mode-label');
                     if (lbl) lbl.textContent = 'So với hiện tại';
@@ -1080,7 +1166,7 @@
                 };
                 btnLm.onclick = () => {
                     currentComparisonMode = 'lm';
-                    updateComparisonStyle(btnLm, btnCurrent, btnEoy);
+                    updateComparisonStyle(btnLm, btnPlan, btnCurrent, btnEoy);
                     updateComparisonChart('lm');
                     const lbl = document.getElementById('summary-mode-label');
                     if (lbl) lbl.textContent = 'So với cuối tháng trước';
@@ -1088,7 +1174,7 @@
                 };
                 btnEoy.onclick = () => {
                     currentComparisonMode = 'eoy';
-                    updateComparisonStyle(btnEoy, btnCurrent, btnLm);
+                    updateComparisonStyle(btnEoy, btnPlan, btnCurrent, btnLm);
                     updateComparisonChart('eoy');
                     const lbl = document.getElementById('summary-mode-label');
                     if (lbl) lbl.textContent = 'So với cuối năm trước';
@@ -1151,6 +1237,19 @@
 
                 const qForecasts = getQuarterEndForecasts(forecasts, lastActualDate);
                 qForecasts.forEach((q, i) => {
+                    if (mode === 'plan') {
+                        const planVal = q.row ? getPlanValue(mkt, q.qDate) : null;
+                        if (q.row && planVal != null && planVal !== 0) {
+                            const spotVal = parseFloat(q.row.spot_base);
+                            seriesData[i].push({
+                                value: ((spotVal / planVal - 1) * 100).toFixed(2),
+                                spot: fmtNum(spotVal)
+                            });
+                        } else {
+                            seriesData[i].push({ value: 0, spot: '-' });
+                        }
+                        return;
+                    }
                     if (q.row && !isNaN(base) && base > 0) {
                         const spotVal = parseFloat(q.row.spot_base);
                         seriesData[i].push({
@@ -1175,7 +1274,7 @@
                     borderColor: '#cbd5e1', borderWidth: 1, textStyle: { color: '#1e293b' },
                     shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.03)',
                     formatter: (params) => {
-                        let res = `<div style="font-weight:700;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:5px;font-size:13px">${params[0].name} <span style="font-weight:500;color:#94a3b8;font-size:11px">(so với ${mode === 'eoy' ? 'cuối năm' : mode === 'lm' ? 'cuối tháng trước' : 'hiện tại'})</span></div>`;
+                        let res = `<div style="font-weight:700;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:5px;font-size:13px">${params[0].name} <span style="font-weight:500;color:#94a3b8;font-size:11px">(so với ${mode === 'plan' ? 'Kế hoạch' : mode === 'eoy' ? 'cuối năm' : mode === 'lm' ? 'cuối tháng trước' : 'hiện tại'})</span></div>`;
                         params.forEach(p => {
                             const spotText = p.data && p.data.spot !== undefined ? p.data.spot : '-';
                             const valSign = p.value > 0 ? '+' : '';
@@ -1219,6 +1318,13 @@
             const isActual = points.map(p => (p.data_type === 'Actual' || p.data_type === 'actual'));
             const isForecast = points.map(p => (p.data_type === 'Forecast' || p.data_type === 'forecast'));
             const displayValues = computeChartValues(points, mode);
+            const planValues = mode === 'abs'
+                ? dates.map(dt => {
+                    const pv = getPlanValue(mktName, dt);
+                    return (pv !== null && !isNaN(pv)) ? pv : null;
+                })
+                : dates.map(() => null);
+            const hasPlan = planValues.some(v => v !== null);
 
             const actualValues = spotBase.filter((v, i) => isActual[i] && v !== null && !isNaN(v));
             const returns = [];
@@ -1353,7 +1459,7 @@
 
                         let html = `<div style="font-weight:700;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;color:#0f172a">${date}</div>`;
                         params.forEach(p => {
-                            if (['P10', 'P90', 'Khoảng dự báo'].includes(p.seriesName)) return;
+                            if (['P10', 'P90', 'Khoảng dự báo', 'Kế hoạch'].includes(p.seriesName)) return;
                             const val = p.value != null ? (mode !== 'abs' ? p.value.toFixed(2) + '%' : fmtAbs(p.value)) : '-';
                             html += `<div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:3px">
                                 <span style="display:flex;align-items:center;gap:6px">
@@ -1378,11 +1484,26 @@
                                 <div style="font-weight:700;color:#14532d">${p10s[idx].toLocaleString()} — ${p90s[idx].toLocaleString()}</div>
                             </div>`;
                         }
+
+                        if (mode === 'abs' && planValues[idx] != null && absVal != null) {
+                            const planVal = planValues[idx];
+                            const deltaPct = planVal !== 0 ? ((absVal / planVal - 1) * 100) : null;
+                            html += `<div style="margin-top:6px;padding:5px;background:#fffbeb;border-radius:6px;border:1px solid #fef3c7">
+                                <div style="display:flex;justify-content:space-between;gap:20px">
+                                    <span style="color:#92400e;font-size:10px;font-weight:700">KẾ HOẠCH</span>
+                                    <span style="font-weight:700;color:#78350f">${fmtAbs(planVal)}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;gap:20px;margin-top:2px">
+                                    <span style="color:#92400e;font-size:10px;font-weight:700">SO VỚI KH</span>
+                                    <span style="font-weight:700;color:${pctColor(deltaPct)}">${fmtPct(deltaPct)}</span>
+                                </div>
+                            </div>`;
+                        }
                         return html;
                     }
                 },
                 legend: {
-                    data: ['Thực tế', 'Dự báo', 'Khoảng dự báo'], icon: 'circle',
+                    data: hasPlan ? ['Thực tế', 'Dự báo', 'Kế hoạch', 'Khoảng dự báo'] : ['Thực tế', 'Dự báo', 'Khoảng dự báo'], icon: 'circle',
                     itemGap: 20, top: 10, right: '3%', textStyle: { color: '#64748b', fontWeight: 500 }
                 },
                 grid: { top: 55, left: '2%', right: '2%', bottom: 40, containLabel: true },
@@ -1402,6 +1523,11 @@
                     {
                         name: 'Dự báo', type: 'line', data: forecasts, smooth: 0.35,
                         lineStyle: { width: 2.5, type: 'dashed', color: '#2563eb' }, itemStyle: { color: '#2563eb' }, showSymbol: false
+                    },
+                    {
+                        name: 'Kế hoạch', type: 'line', data: planValues, smooth: 0.15,
+                        lineStyle: { width: 2, type: 'dashed', color: '#f59e0b' }, itemStyle: { color: '#f59e0b' },
+                        showSymbol: true, symbol: 'circle', symbolSize: 5, connectNulls: true, z: 3
                     },
                     { name: 'P10', type: 'line', data: mode === 'abs' ? p10s : p10s.map(() => null), stack: 'ci', lineStyle: { opacity: 0 }, symbol: 'none' },
                     {
