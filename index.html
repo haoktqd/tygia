@@ -946,34 +946,60 @@
                     return `<p class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200/40">${text}</p>`;
                 });
 
-                const qBriefRows = qData.map(q => {
-                    const spotDisp = (q.spot !== null && !isNaN(q.spot)) ? fmtNum(q.spot) : '-';
-                    const pctCurrDisp = formatDelta(q.pctCurr);
-                    const pctEoyDisp = formatDelta(q.pctEoy);
-                    const pctLmDisp = formatDelta(q.pctLm);
-                    const pctNum = q.pctCurr !== null ? q.pctCurr : NaN;
-                    const colorClass = isNaN(pctNum) ? 'text-slate-400' : pctNum > 0 ? 'text-rose-600' : 'text-emerald-600';
-                    const arrow = isNaN(pctNum) ? '' : pctNum > 0 ? '▲' : pctNum < 0 ? '▼' : '—';
-                    const eoyNum = q.pctEoy !== null ? q.pctEoy : NaN;
-                    const eoyColorClass = isNaN(eoyNum) ? 'text-slate-400' : eoyNum > 0 ? 'text-rose-600' : 'text-emerald-600';
-                    const eoyArrow = isNaN(eoyNum) ? '' : eoyNum > 0 ? '▲' : eoyNum < 0 ? '▼' : '—';
-                    const lmNum = q.pctLm !== null ? q.pctLm : NaN;
-                    const lmColorClass = isNaN(lmNum) ? 'text-slate-400' : lmNum > 0 ? 'text-rose-600' : 'text-emerald-600';
-                    const lmArrow = isNaN(lmNum) ? '' : lmNum > 0 ? '▲' : lmNum < 0 ? '▼' : '—';
-                    const planNum = (q.pctPlan !== null && q.pctPlan !== undefined) ? q.pctPlan : NaN;
-                    const planColorClass = isNaN(planNum) ? 'text-slate-400' : planNum > 0 ? 'text-rose-600' : 'text-emerald-600';
-                    const planArrow = isNaN(planNum) ? '' : planNum > 0 ? '▲' : planNum < 0 ? '▼' : '—';
-                    const planDisp = formatDelta(q.pctPlan);
+                const renderBriefDeltaCell = (pct) => {
+                    if (pct === null || pct === undefined || isNaN(pct)) {
+                        return `<span class="text-slate-400 text-right font-bold">-</span>`;
+                    }
+                    if (Math.abs(pct) < 0.0001) {
+                        return `<span class="text-slate-400 text-right font-bold">— 0.00%</span>`;
+                    }
+                    const arrow = pct > 0 ? '▲' : '▼';
+                    const colorClass = pct > 0 ? 'text-rose-600' : 'text-emerald-600';
+                    return `<span class="${colorClass} text-right font-bold">${arrow} ${formatDelta(pct)}</span>`;
+                };
+
+                const renderBriefRow = (item) => {
+                    const spotDisp = (item.spot !== null && item.spot !== undefined && !isNaN(item.spot)) ? fmtNum(item.spot) : '-';
                     return `
                     <div class="grid grid-cols-6 text-xs py-2 border-b border-slate-100 last:border-0 font-medium">
-                        <span class="text-slate-800 font-bold">${q.label}</span>
+                        <span class="text-slate-800 font-bold leading-tight">${item.label}</span>
                         <span class="text-slate-700 text-right font-semibold">${spotDisp}</span>
-                        <span class="${colorClass} text-right font-bold">${arrow} ${pctCurrDisp}</span>
-                        <span class="${lmColorClass} text-right font-bold">${lmArrow} ${pctLmDisp}</span>
-                        <span class="${eoyColorClass} text-right font-bold">${eoyArrow} ${pctEoyDisp}</span>
-                        <span class="${planColorClass} text-right font-bold">${planArrow} ${planDisp}</span>
+                        ${renderBriefDeltaCell(item.pctCurr)}
+                        ${renderBriefDeltaCell(item.pctLm)}
+                        ${renderBriefDeltaCell(item.pctEoy)}
+                        ${renderBriefDeltaCell(item.pctPlan)}
                     </div>`;
-                }).join('');
+                };
+
+                const baseBriefRows = [
+                    {
+                        label: 'Cuối năm trước',
+                        spot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
+                        pctCurr: (!isNaN(prevYearEndSpot) && currentSpotNum && currentSpotNum !== 0) ? ((prevYearEndSpot / currentSpotNum - 1) * 100) : null,
+                        pctLm: (!isNaN(prevYearEndSpot) && !isNaN(prevMonthEndSpot) && prevMonthEndSpot !== 0) ? ((prevYearEndSpot / prevMonthEndSpot - 1) * 100) : null,
+                        pctEoy: null,
+                        pctPlan: pctVsPlanEoy
+                    },
+                    {
+                        label: 'Tháng trước',
+                        spot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
+                        pctCurr: (!isNaN(prevMonthEndSpot) && currentSpotNum && currentSpotNum !== 0) ? ((prevMonthEndSpot / currentSpotNum - 1) * 100) : null,
+                        pctLm: null,
+                        pctEoy: (!isNaN(prevMonthEndSpot) && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0) ? ((prevMonthEndSpot / prevYearEndSpot - 1) * 100) : null,
+                        pctPlan: pctVsPlanLm
+                    },
+                    {
+                        label: 'Hiện tại',
+                        spot: (currentSpotNum !== null && !isNaN(currentSpotNum)) ? currentSpotNum : null,
+                        pctCurr: null,
+                        pctLm: (!isNaN(currentSpotNum) && !isNaN(prevMonthEndSpot) && prevMonthEndSpot !== 0) ? ((currentSpotNum / prevMonthEndSpot - 1) * 100) : null,
+                        pctEoy: (!isNaN(currentSpotNum) && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0) ? ((currentSpotNum / prevYearEndSpot - 1) * 100) : null,
+                        pctPlan: pctVsPlanCurrent
+                    }
+                ];
+
+                const allTimelineItems = [...baseBriefRows, ...qData];
+                const qBriefRows = allTimelineItems.map(item => renderBriefRow(item)).join('');
 
                 brief.innerHTML = `
                     <div>
