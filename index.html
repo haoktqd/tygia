@@ -228,7 +228,7 @@
             <div class="flex items-center gap-2 px-1">
                 <h3 class="text-lg font-bold text-slate-800">Báo cáo & Nhận định chiến lược theo thị trường</h3>
             </div>
-            <div id="briefs-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+            <div id="briefs-container" class="grid grid-cols-1 gap-6"></div>
         </section>
 
         <!-- World Market Events -->
@@ -760,7 +760,7 @@
                 }
 
                 const qData = qForecasts.map(q => {
-                    if (!q.row) return { label: q.label, spot: null, pctCurr: null, pctEoy: null, pctLm: null, plan: null, pctPlan: null };
+                    if (!q.row) return { label: q.label, spot: null, pctCurr: null, lmSpot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null, pctLm: null, eoySpot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null, pctEoy: null, plan: null, pctPlan: null };
                     const spot = parseFloat(q.row.spot_base);
                     const pctCurr = (!isNaN(spot) && currentSpotNum && currentSpotNum !== 0)
                         ? ((spot / currentSpotNum - 1) * 100) : null;
@@ -770,7 +770,17 @@
                         ? ((spot / prevMonthEndSpot - 1) * 100) : null;
                     const plan = getPlanValue(mkt, q.qDate);
                     const pctPlan = (!isNaN(spot) && plan != null && plan !== 0) ? ((spot / plan - 1) * 100) : null;
-                    return { label: q.label, spot, pctCurr, pctEoy, pctLm, plan, pctPlan };
+                    return {
+                        label: q.label,
+                        spot,
+                        pctCurr,
+                        lmSpot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
+                        pctLm,
+                        eoySpot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
+                        pctEoy,
+                        plan,
+                        pctPlan
+                    };
                 });
 
                 const currentPlan = currentDate !== '-' ? getPlanValue(mkt, currentDate) : null;
@@ -960,13 +970,20 @@
 
                 const renderBriefRow = (item) => {
                     const spotDisp = (item.spot !== null && item.spot !== undefined && !isNaN(item.spot)) ? fmtNum(item.spot) : '-';
+                    const lmSpotDisp = (item.lmSpot !== null && item.lmSpot !== undefined && !isNaN(item.lmSpot)) ? fmtNum(item.lmSpot) : '-';
+                    const eoySpotDisp = (item.eoySpot !== null && item.eoySpot !== undefined && !isNaN(item.eoySpot)) ? fmtNum(item.eoySpot) : '-';
+                    const planDisp = (item.plan !== null && item.plan !== undefined && !isNaN(item.plan) && item.plan !== 0) ? fmtNum(item.plan) : '-';
+
                     return `
-                    <div class="grid grid-cols-6 text-xs py-2 border-b border-slate-100 last:border-0 font-medium">
-                        <span class="text-slate-800 font-bold leading-tight">${item.label}</span>
-                        <span class="text-slate-700 text-right font-semibold">${spotDisp}</span>
+                    <div class="grid grid-cols-9 gap-2 min-w-[760px] text-xs py-2 border-b border-slate-100 last:border-0 font-medium items-center">
+                        <span class="text-slate-800 font-bold leading-tight text-left">${item.label}</span>
+                        <span class="${spotDisp === '-' ? 'text-slate-400' : 'text-slate-700'} text-right font-semibold">${spotDisp}</span>
                         ${renderBriefDeltaCell(item.pctCurr)}
+                        <span class="${lmSpotDisp === '-' ? 'text-slate-400' : 'text-slate-700'} text-right font-semibold">${lmSpotDisp}</span>
                         ${renderBriefDeltaCell(item.pctLm)}
+                        <span class="${eoySpotDisp === '-' ? 'text-slate-400' : 'text-slate-700'} text-right font-semibold">${eoySpotDisp}</span>
                         ${renderBriefDeltaCell(item.pctEoy)}
+                        <span class="${planDisp === '-' ? 'text-slate-400' : 'text-slate-700'} text-right font-semibold">${planDisp}</span>
                         ${renderBriefDeltaCell(item.pctPlan)}
                     </div>`;
                 };
@@ -976,24 +993,33 @@
                         label: 'Cuối năm trước',
                         spot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
                         pctCurr: (!isNaN(prevYearEndSpot) && currentSpotNum && currentSpotNum !== 0) ? ((prevYearEndSpot / currentSpotNum - 1) * 100) : null,
+                        lmSpot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
                         pctLm: (!isNaN(prevYearEndSpot) && !isNaN(prevMonthEndSpot) && prevMonthEndSpot !== 0) ? ((prevYearEndSpot / prevMonthEndSpot - 1) * 100) : null,
+                        eoySpot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
                         pctEoy: null,
+                        plan: (eoyPlan != null && !isNaN(eoyPlan)) ? eoyPlan : null,
                         pctPlan: pctVsPlanEoy
                     },
                     {
                         label: 'Tháng trước',
                         spot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
                         pctCurr: (!isNaN(prevMonthEndSpot) && currentSpotNum && currentSpotNum !== 0) ? ((prevMonthEndSpot / currentSpotNum - 1) * 100) : null,
+                        lmSpot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
                         pctLm: null,
+                        eoySpot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
                         pctEoy: (!isNaN(prevMonthEndSpot) && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0) ? ((prevMonthEndSpot / prevYearEndSpot - 1) * 100) : null,
+                        plan: (lmPlan != null && !isNaN(lmPlan)) ? lmPlan : null,
                         pctPlan: pctVsPlanLm
                     },
                     {
                         label: 'Hiện tại',
                         spot: (currentSpotNum !== null && !isNaN(currentSpotNum)) ? currentSpotNum : null,
                         pctCurr: null,
+                        lmSpot: !isNaN(prevMonthEndSpot) ? prevMonthEndSpot : null,
                         pctLm: (!isNaN(currentSpotNum) && !isNaN(prevMonthEndSpot) && prevMonthEndSpot !== 0) ? ((currentSpotNum / prevMonthEndSpot - 1) * 100) : null,
+                        eoySpot: !isNaN(prevYearEndSpot) ? prevYearEndSpot : null,
                         pctEoy: (!isNaN(currentSpotNum) && !isNaN(prevYearEndSpot) && prevYearEndSpot !== 0) ? ((currentSpotNum / prevYearEndSpot - 1) * 100) : null,
+                        plan: (currentPlan != null && !isNaN(currentPlan)) ? currentPlan : null,
                         pctPlan: pctVsPlanCurrent
                     }
                 ];
@@ -1031,9 +1057,17 @@
                         </div>
 
                         <!-- Forecast timeline -->
-                        <div class="mb-5 bg-white border border-slate-200/60 rounded-xl p-3 shadow-xs">
-                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-6">
-                                <span class="text-center">Kỳ hạn</span> <span class="text-center">Tỷ giá</span> <span class="text-center">Vs hiện tại</span> <span class="text-center">Vs tháng trước</span> <span class="text-center">YTD</span> <span class="text-center">Vs Kế hoạch</span>
+                        <div class="mb-5 bg-white border border-slate-200/60 rounded-xl p-3 shadow-xs overflow-x-auto">
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-9 gap-2 min-w-[760px]">
+                                <span class="text-left">Kỳ hạn</span>
+                                <span class="text-right">Tỷ giá</span>
+                                <span class="text-right">Vs hiện tại</span>
+                                <span class="text-right">Tháng trước</span>
+                                <span class="text-right">Vs tháng trước</span>
+                                <span class="text-right">Cuối năm trước</span>
+                                <span class="text-right">Vs cuối năm trước (YTD)</span>
+                                <span class="text-right">Kế hoạch</span>
+                                <span class="text-right">Vs Kế hoạch</span>
                             </div>
                             ${qBriefRows ? qBriefRows : '<div class="text-xs text-slate-400 italic py-2 text-center">Không có dữ liệu dự báo</div>'}
                         </div>
