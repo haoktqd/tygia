@@ -909,13 +909,13 @@
                 const scoreComment = (score, indicatorKey) => {
                     const x = parseFloat(String(score).replace(',', '.'));
                     if (score === '-' || score === undefined || score === null || String(score).trim() === '' || isNaN(x))
-                        return '<span class="text-slate-400 text-xs font-semibold">⚪ Chưa cấu hình</span>';
+                        return '<span class="text-slate-400 text-xs font-semibold whitespace-nowrap">⚪ Chưa cấu hình</span>';
                     const thresholds = indicatorThresholds[indicatorKey] || { high: 50, medium: 25 };
                     if (x >= thresholds.high)
-                        return '<span class="text-rose-600 bg-rose-50 px-2 py-0.5 rounded text-xs font-bold">🔴 Cao</span>';
+                        return '<span class="text-rose-600 bg-rose-50 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">🔴 Cao</span>';
                     if (x >= thresholds.medium)
-                        return '<span class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-xs font-bold">🟡 Trung bình</span>';
-                    return '<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs font-bold">🟢 Thấp</span>';
+                        return '<span class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">🟡 Trung bình</span>';
+                    return '<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">🟢 Thấp</span>';
                 };
 
                 if (riskRow) {
@@ -927,9 +927,9 @@
                             }
                         }
                         scoreLines.push(`
-                            <div class="flex justify-between items-center text-xs text-slate-600 border-b border-slate-100 py-2 last:border-0">
-                                <span class="font-medium">${field.label}</span>
-                                <span>${scoreComment(rawScore, field.key)}</span>
+                            <div class="flex justify-between items-center text-xs text-slate-600 border-b border-slate-100 py-2 last:border-0 gap-2">
+                                <span class="font-medium text-slate-700">${field.label}</span>
+                                <span class="shrink-0">${scoreComment(rawScore, field.key)}</span>
                             </div>
                         `);
                     });
@@ -1041,23 +1041,23 @@
                         ${qBriefRows ? qBriefRows : '<div class="text-xs text-slate-400 italic py-2 text-center">Không có dữ liệu dự báo</div>'}
                     </div>
 
-                    <!-- 2 Cột: Tác động các yếu tố (Trái) & Nhận định Chuyên gia (Phải) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                        <div class="flex flex-col">
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- 2 Cột: Tác động các yếu tố (30%) & Nhận định Chuyên gia (70%) -->
+                    <div class="grid grid-cols-1 md:grid-cols-10 gap-4 mb-5">
+                        <div class="md:col-span-3 flex flex-col">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5 leading-tight">
+                                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                                 </svg>
-                                Tác động của các yếu tố đến biến động tỷ giá
+                                <span>Tác động của các yếu tố đến biến động tỷ giá</span>
                             </h4>
                             <div class="bg-slate-50/50 rounded-xl px-3.5 py-2 border border-slate-100 flex-1 flex flex-col justify-around">
                                 ${scoreLines.length > 0 ? scoreLines.join('') : '<p class="text-xs text-slate-400 italic py-4 text-center">Chưa có dữ liệu đánh giá yếu tố tác động.</p>'}
                             </div>
                         </div>
 
-                        <div class="flex flex-col">
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <div class="md:col-span-7 flex flex-col">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5 leading-tight">
                                 <span>💡</span>
                                 <span>Nhận định Chuyên gia</span>
                             </h4>
