@@ -244,14 +244,6 @@
             <div id="world-news" class="p-5 divide-y divide-slate-100 overflow-y-auto max-h-[500px] bg-white"></div>
         </section>
 
-        <!-- Dynamic Charts -->
-        <div class="space-y-4">
-            <h3 class="text-lg font-bold text-slate-800 px-1">Đường xu hướng lịch sử & Biên dự báo</h3>
-            <div id="market-charts" class="grid grid-cols-1 gap-6">
-                <!-- Filled by JS -->
-            </div>
-        </div>
-
         <!-- Scorecard Verification -->
         <section class="card overflow-hidden">
             <div class="p-5 border-b border-slate-100 bg-slate-50/50">
@@ -883,9 +875,13 @@
                 tr.innerHTML = tdCells;
                 summaryBody.appendChild(tr);
 
-                // Brief component (Right side Cards)
+                // Brief component
                 const brief = document.createElement('div');
-                brief.className = "card p-6 bg-white flex flex-col justify-between";
+                brief.className = "card p-6 bg-white";
+
+                const chartId = 'echart-' + mkt.replace(/[^a-zA-Z0-9]/g, '');
+                if (!chartModes[chartId]) chartModes[chartId] = 'abs';
+                const currentChartMode = chartModes[chartId];
 
                 const firstForecastRow = firstForecast;
                 const riskRow = firstForecastRow || (rawData.risk_analysis || []).find(r => {
@@ -931,19 +927,12 @@
                             }
                         }
                         scoreLines.push(`
-                            <div class="flex justify-between items-center text-xs text-slate-600 border-b border-slate-50 py-1.5 last:border-0">
-                                <span>${field.label}</span>
+                            <div class="flex justify-between items-center text-xs text-slate-600 border-b border-slate-100 py-2 last:border-0">
+                                <span class="font-medium">${field.label}</span>
                                 <span>${scoreComment(rawScore, field.key)}</span>
                             </div>
                         `);
                     });
-                }
-
-                let endYearSpot = '-';
-                if (prevYearActuals.length > 0) {
-                    const s = prevYearActuals[0].row.spot_base;
-                    const parsedSpot = parseFloat(String(s).replace(',', '.'));
-                    endYearSpot = !isNaN(parsedSpot) ? fmtNum(parsedSpot) : '-';
                 }
 
                 const marketEvents = recentEvents.filter(ev => {
@@ -953,7 +942,7 @@
 
                 const eventLines = marketEvents.map(ev => {
                     const text = ev.content || ev.Content || ev.event || ev.Event || ev.headline || ev.Headline || ev.description || ev.Description || '';
-                    return `<p class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200/40">${text}</p>`;
+                    return `<div class="text-xs text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-200/60 shadow-xs">${text}</div>`;
                 });
 
                 const renderBriefDeltaCell = (pct) => {
@@ -1028,67 +1017,84 @@
                 const qBriefRows = allTimelineItems.map(item => renderBriefRow(item)).join('');
 
                 brief.innerHTML = `
-                    <div>
-                        <div class="flex justify-between items-start mb-4 pb-3 border-b border-slate-100">
-                            <div>
-                                <span class="text-2xl font-black text-slate-900 tracking-tight block">${mkt}</span>
-                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">${countryName}</span>
-                            </div>
-                            <span class="risk-badge risk-${trafficLight.toLowerCase()} shadow-xs font-bold text-[11px]">${trafficLight}</span>
+                    <div class="flex justify-between items-start mb-4 pb-3 border-b border-slate-100">
+                        <div>
+                            <span class="text-2xl font-black text-slate-900 tracking-tight block">${mkt}</span>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">${countryName}</span>
                         </div>
+                        <span class="risk-badge risk-${trafficLight.toLowerCase()} shadow-xs font-bold text-[11px]">${trafficLight}</span>
+                    </div>
 
-                        <!-- Spot section -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cuối năm trước</span>
-                                <span class="text-xs font-bold text-slate-700">${endYearSpot}</span>
-                                ${(eoyPlan != null && pctVsPlanEoy !== null && !isNaN(pctVsPlanEoy)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanEoy > 0 ? '+' : ''}${pctVsPlanEoy.toFixed(2)}%</span>` : ''}
-                            </div>
-                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cuối tháng trước</span>
-                                <span class="text-xs font-bold text-slate-700">${isNaN(prevMonthEndSpot) ? '-' : fmtNum(prevMonthEndSpot)}</span>
-                                ${(lmPlan != null && pctVsPlanLm !== null && !isNaN(pctVsPlanLm)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanLm > 0 ? '+' : ''}${pctVsPlanLm.toFixed(2)}%</span>` : ''}
-                            </div>
-                            <div class="bg-blue-50/40 p-2.5 rounded-xl border border-blue-100/60">
-                                <span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider block mb-0.5">Giá Hiện Tại</span>
-                                <span class="text-xs font-bold text-blue-700">${currentSpot}</span>
-                                ${(currentPlan != null && pctVsPlanCurrent !== null && !isNaN(pctVsPlanCurrent)) ? `<span class="text-[9px] font-bold text-amber-600 block mt-0.5">KH ${pctVsPlanCurrent > 0 ? '+' : ''}${pctVsPlanCurrent.toFixed(2)}%</span>` : ''}
-                            </div>
+                    <!-- Forecast timeline -->
+                    <div class="mb-5 bg-white border border-slate-200/60 rounded-xl p-3 shadow-xs overflow-x-auto">
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-9 gap-2 min-w-[760px]">
+                            <span class="text-left">Kỳ hạn</span>
+                            <span class="text-right">Tỷ giá</span>
+                            <span class="text-right">Vs hiện tại</span>
+                            <span class="text-right">Tháng trước</span>
+                            <span class="text-right">Vs tháng trước</span>
+                            <span class="text-right">Cuối năm trước</span>
+                            <span class="text-right">Vs cuối năm trước (YTD)</span>
+                            <span class="text-right">Kế hoạch</span>
+                            <span class="text-right">Vs Kế hoạch</span>
                         </div>
+                        ${qBriefRows ? qBriefRows : '<div class="text-xs text-slate-400 italic py-2 text-center">Không có dữ liệu dự báo</div>'}
+                    </div>
 
-                        <!-- Forecast timeline -->
-                        <div class="mb-5 bg-white border border-slate-200/60 rounded-xl p-3 shadow-xs overflow-x-auto">
-                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1.5 grid grid-cols-9 gap-2 min-w-[760px]">
-                                <span class="text-left">Kỳ hạn</span>
-                                <span class="text-right">Tỷ giá</span>
-                                <span class="text-right">Vs hiện tại</span>
-                                <span class="text-right">Tháng trước</span>
-                                <span class="text-right">Vs tháng trước</span>
-                                <span class="text-right">Cuối năm trước</span>
-                                <span class="text-right">Vs cuối năm trước (YTD)</span>
-                                <span class="text-right">Kế hoạch</span>
-                                <span class="text-right">Vs Kế hoạch</span>
-                            </div>
-                            ${qBriefRows ? qBriefRows : '<div class="text-xs text-slate-400 italic py-2 text-center">Không có dữ liệu dự báo</div>'}
-                        </div>
-
-                        <!-- Risk matrix internal -->
-                        <div class="mb-5">
+                    <!-- 2 Cột: Tác động các yếu tố (Trái) & Nhận định Chuyên gia (Phải) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                        <div class="flex flex-col">
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
                                 Tác động của các yếu tố đến biến động tỷ giá
                             </h4>
-                            <div class="bg-slate-50/50 rounded-xl px-3 py-1.5 border border-slate-100">${scoreLines.join('')}</div>
+                            <div class="bg-slate-50/50 rounded-xl px-3.5 py-2 border border-slate-100 flex-1 flex flex-col justify-around">
+                                ${scoreLines.length > 0 ? scoreLines.join('') : '<p class="text-xs text-slate-400 italic py-4 text-center">Chưa có dữ liệu đánh giá yếu tố tác động.</p>'}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <span>💡</span>
+                                <span>Nhận định Chuyên gia</span>
+                            </h4>
+                            <div class="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex-1 overflow-y-auto max-h-[260px] space-y-2">
+                                ${eventLines.length > 0 ? eventLines.join('') : '<p class="text-xs text-slate-400 italic py-4 text-center">Không có nhận định chuyên gia gần đây.</p>'}
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mt-4 pt-4 border-t border-slate-100">
-                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">💡 Nhận định Chuyên gia</h4>
-                        <div class="space-y-2">${eventLines.length > 0 ? eventLines.join('') : '<p class="text-xs text-slate-400 italic">Không có cập nhật sự kiện cục bộ gần đây.</p>'}</div>
+                    <!-- Đường xu hướng lịch sử & Biên dự báo -->
+                    <div class="pt-4 border-t border-slate-100">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                    </svg>
+                                    Đường xu hướng lịch sử & Biên dự báo
+                                </h4>
+                                <p class="text-[11px] text-slate-400 font-medium">Lịch sử thực tế và dải băng dự báo phân vị 80%</p>
+                            </div>
+                            <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 self-start sm:self-center gap-0.5">
+                                <button id="${chartId}-btn-abs" onclick="setChartMode('${chartId}','${mkt}','abs')" class="px-3 py-1.5 text-xs ${currentChartMode === 'abs' ? 'font-bold rounded-lg bg-white text-blue-600 shadow-sm border border-slate-200/40' : 'font-semibold rounded-lg text-slate-500 hover:text-slate-800'} transition-all">Tỷ giá gốc</button>
+                                <button id="${chartId}-btn-yoy" onclick="setChartMode('${chartId}','${mkt}','yoy')" class="px-3 py-1.5 text-xs ${currentChartMode === 'yoy' ? 'font-bold rounded-lg bg-white text-blue-600 shadow-sm border border-slate-200/40' : 'font-semibold rounded-lg text-slate-500 hover:text-slate-800'} transition-all">YoY %</button>
+                                <button id="${chartId}-btn-mom" onclick="setChartMode('${chartId}','${mkt}','mom')" class="px-3 py-1.5 text-xs ${currentChartMode === 'mom' ? 'font-bold rounded-lg bg-white text-blue-600 shadow-sm border border-slate-200/40' : 'font-semibold rounded-lg text-slate-500 hover:text-slate-800'} transition-all">MoM %</button>
+                                <button id="${chartId}-btn-ytd" onclick="setChartMode('${chartId}','${mkt}','ytd')" class="px-3 py-1.5 text-xs ${currentChartMode === 'ytd' ? 'font-bold rounded-lg bg-white text-blue-600 shadow-sm border border-slate-200/40' : 'font-semibold rounded-lg text-slate-500 hover:text-slate-800'} transition-all">YTD %</button>
+                            </div>
+                        </div>
+                        <div id="${chartId}" class="chart-container" style="height:380px; width:100%;"></div>
                     </div>
                 `;
 
                 briefsContainer.appendChild(brief);
+                setTimeout(() => {
+                    renderEChart(chartId, mkt, chartData, currentChartMode);
+                }, 0);
             });
 
             // WORLD NEWS Clean Light Theme
@@ -1159,35 +1165,6 @@
                         </div>
                     `;
                     expertContainer.appendChild(block);
-                });
-            }
-
-            // INDIVIDUAL CHARTS Light Theme Rendering
-            const chartSection = document.getElementById('market-charts');
-            if (chartSection) {
-                chartSection.innerHTML = '';
-                Object.entries(rawData.charts).forEach(([mkt, points]) => {
-                    const container = document.createElement('div');
-                    container.className = "card p-5 bg-white";
-                    const chartId = 'echart-' + mkt.replace(/[^a-zA-Z0-9]/g, '');
-                    if (!chartModes[chartId]) chartModes[chartId] = 'abs';
-                    container.innerHTML = `
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
-                            <div>
-                                <h3 class="text-lg font-bold text-slate-900">${mkt} Timeline Indicator</h3>
-                                <p class="text-xs text-slate-400 font-medium">Lịch sử thực tế và dải băng dự báo phân vị 80%</p>
-                            </div>
-                            <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 self-start sm:self-center gap-0.5">
-                                <button id="${chartId}-btn-abs" onclick="setChartMode('${chartId}','${mkt}','abs')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white text-blue-600 shadow-sm border border-slate-200/40 transition-all">Tỷ giá gốc</button>
-                                <button id="${chartId}-btn-yoy" onclick="setChartMode('${chartId}','${mkt}','yoy')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition-all">YoY %</button>
-                                <button id="${chartId}-btn-mom" onclick="setChartMode('${chartId}','${mkt}','mom')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition-all">MoM %</button>
-                                <button id="${chartId}-btn-ytd" onclick="setChartMode('${chartId}','${mkt}','ytd')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition-all">YTD %</button>
-                            </div>
-                        </div>
-                        <div id="${chartId}" class="chart-container" style="height:380px"></div>
-                    `;
-                    chartSection.appendChild(container);
-                    setTimeout(() => renderEChart(chartId, mkt, points, 'abs'), 0);
                 });
             }
 
@@ -1601,8 +1578,6 @@
             myChart.setOption(option);
             window.addEventListener('resize', () => myChart.resize());
         }
-
-        document.addEventListener('DOMContentLoaded', fetchAllData);
     </script>
 </body>
 
